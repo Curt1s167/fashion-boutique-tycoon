@@ -9,7 +9,10 @@ import type {
   WorkShift,
   BusinessAdvisorInsight,
   Employee,
-  CustomerReview
+  CustomerReview,
+  DayPhase,
+  PlayerCarryItem,
+  StoreTask
 } from '../types/game';
 import { 
   INITIAL_STYLES, 
@@ -40,7 +43,17 @@ export type ActiveTabType =
   | 'lookbook' 
   | 'upgrades';
 
-export const DAY_DURATION = 180; // 180 seconds = 3 minutes per business day
+export const GAME_TIME_CONFIG = {
+  openHour: 8,
+  closeHour: 22,
+  totalGameMinutes: 840, // (22 - 8) * 60 = 840
+  realSecondsPerDay: 180, // 3 minutes per business day
+  preparationTimed: false,
+  closingGraceEnabled: true,
+  maxClosingGraceSeconds: 20
+};
+
+export const DAY_DURATION = GAME_TIME_CONFIG.realSecondsPerDay;
 
 interface GameContextType {
   state: GameState;
@@ -57,6 +70,14 @@ interface GameContextType {
   rushFitting: () => void;
   rushCheckout: () => void;
   sweepFloor: () => void;
+  // Manual Storeplay Carry & Tasks
+  pickItemToCarry: (styleId: string, variantId: string, source: 'rack' | 'backroom') => void;
+  dropCarriedItem: (itemId: string, target: 'rack' | 'backroom') => void;
+  giveCarriedItemToCustomer: (customerId: string, itemId: string) => void;
+  collectFittingReturn: (returnId: string, target: 'rack' | 'backroom') => void;
+  fulfillFittingSizeRequest: (customerId: string, newSize: string) => void;
+  setGameSpeed: (speed: number) => void;
+  openStoreFromPreparation: () => void;
   // Returns & Online Orders
   resolveReturn: (returnId: string, approve: boolean) => void;
   speedUpOnlineOrder: (orderId: string) => void;
@@ -97,6 +118,16 @@ const INITIAL_GAME_STATE: GameState = {
   day: 1,
   dayTime: 0,
   isDayRunning: true,
+
+  gameSpeed: 1,
+  dayPhase: 'MORNING',
+  currentInGameMinutes: 480, // 08:00 AM
+
+  playerCarry: [],
+  playerCarryCapacity: 3,
+
+  storeTasks: [],
+  fittingReturns: [],
 
   cleanliness: 95,
   trafficMultiplier: 1.0,
@@ -202,9 +233,14 @@ const INITIAL_GAME_STATE: GameState = {
     profit: 0,
     customersServed: 0,
     customersLost: 0,
+    lostSalesValue: 0,
+    pendingCartValue: 0,
+    stockoutLostCount: 0,
+    queueAbandonCount: 0,
+    conversionRate: 0,
     onlineOrdersCompleted: 0,
     returnsProcessed: 0,
-    averageSatisfaction: 90
+    averageSatisfaction: 95
   },
 
   advisorInsights: INITIAL_ADVISOR_INSIGHTS,
@@ -492,6 +528,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const updatedCustomers = prev.customers.filter(c => c.id !== customerId);
 
+      // Recalculate pending cart and conversion rate
+      const nextServed = prev.currentDayStats.customersServed + 1;
+      const totalVisitors = nextServed + prev.currentDayStats.customersLost;
+      const newConversionRate = Math.round((nextServed / Math.max(1, totalVisitors)) * 100);
+
       return {
         ...prev,
         cash: prev.cash + finalBill,
@@ -503,18 +544,307 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...prev.currentDayStats,
           revenue: prev.currentDayStats.revenue + finalBill,
           profit: prev.currentDayStats.profit + finalBill,
-          customersServed: prev.currentDayStats.customersServed + 1
+          customersServed: nextServed,
+          conversionRate: newConversionRate
         }
       };
     });
   }, [addFloatingNumber]);
+
+  // Pick up an item from rack or backroom to carry in hand
+  const pickItemToCarry = useCallback((styleId: string, variantId: string, source: 'rack' | 'backroom') => {
+    setState(prev => {
+      if (prev.playerCarry.length >= prev.playerCarryCapacity) {
+        sound.playAngry();
+        addFloatingNumber(`⚠️ Đã đầy tay (${prev.playerCarry.length}/${prev.playerCarryCapacity})!`, 'sad');
+        return prev;
+      }
+
+      const style = prev.styles[styleId];
+      if (!style) return prev;
+      const variant = style.variants.find(v => v.id === variantId);
+      if (!variant) return prev;
+
+      if (source === 'rack' && variant.floorStock <= 0) {
+        sound.playAngry();
+        addFloatingNumber('❌ Hết hàng trên kệ!', 'sad');
+        return prev;
+      }
+      if (source === 'backroom' && variant.backroomStock <= 0) {
+        sound.playAngry();
+        addFloatingNumber('❌ Hết hàng trong kho!', 'sad');
+        return prev;
+      }
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === variantId) {
+          return {
+            ...v,
+            floorStock: source === 'rack' ? v.floorStock - 1 : v.floorStock,
+            backroomStock: source === 'backroom' ? v.backroomStock - 1 : v.backroomStock
+          };
+        }
+        return v;
+      });
+
+      const newCarryItem: PlayerCarryItem = {
+        id: 'carry-' + Date.now() + '-' + Math.random(),
+        styleId: style.id,
+        styleName: style.name,
+        variantId: variant.id,
+        size: variant.size,
+        colorName: variant.colorName,
+        colorHex: variant.colorHex,
+        emoji: style.emoji,
+        costPrice: variant.costPrice,
+        sellPrice: variant.sellPrice,
+        source
+      };
+
+      sound.playPop();
+      addFloatingNumber(`📦 Cầm: ${style.name} (${variant.size}) [${prev.playerCarry.length + 1}/${prev.playerCarryCapacity}]`, 'clean');
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [styleId]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        playerCarry: [...prev.playerCarry, newCarryItem]
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Drop or return carried item back to rack or backroom
+  const dropCarriedItem = useCallback((itemId: string, target: 'rack' | 'backroom') => {
+    setState(prev => {
+      const item = prev.playerCarry.find(i => i.id === itemId);
+      if (!item) return prev;
+
+      const style = prev.styles[item.styleId];
+      if (!style) return prev;
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === item.variantId) {
+          return {
+            ...v,
+            floorStock: target === 'rack' ? v.floorStock + 1 : v.floorStock,
+            backroomStock: target === 'backroom' ? v.backroomStock + 1 : v.backroomStock
+          };
+        }
+        return v;
+      });
+
+      sound.playPop();
+      addFloatingNumber(`Trả về ${target === 'rack' ? 'kệ' : 'kho'}: ${item.styleName} (${item.size})`, 'order');
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        playerCarry: prev.playerCarry.filter(i => i.id !== itemId)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Hand carried item to waiting customer
+  const giveCarriedItemToCustomer = useCallback((customerId: string, itemId: string) => {
+    setState(prev => {
+      const custIdx = prev.customers.findIndex(c => c.id === customerId);
+      const carryIdx = prev.playerCarry.findIndex(i => i.id === itemId);
+      if (custIdx === -1 || carryIdx === -1) return prev;
+
+      const cust = prev.customers[custIdx];
+      const item = prev.playerCarry[carryIdx];
+
+      // Match check: Style and Size
+      const expectedSize = cust.requestedAlternativeSize || cust.requestedSize;
+      const isMatch = (item.styleId === cust.targetStyleId) && (item.size === expectedSize);
+
+      if (!isMatch) {
+        sound.playAngry();
+        addFloatingNumber(`❌ Nhầm size! Khách cần ${expectedSize}, bạn đưa ${item.size}`, 'sad');
+        
+        // Patience penalty for wrong item (Section 10)
+        const updatedCustomers = [...prev.customers];
+        updatedCustomers[custIdx] = {
+          ...cust,
+          patience: Math.max(0, cust.patience - 18)
+        };
+        return {
+          ...prev,
+          customers: updatedCustomers
+        };
+      }
+
+      // Exact match success!
+      sound.playPop();
+      addFloatingNumber(`✨ Khách nhận: ${item.styleName} (${item.size})`, 'clean');
+
+      const updatedCustomers = [...prev.customers];
+      updatedCustomers[custIdx] = {
+        ...cust,
+        state: 'fitting',
+        stateProgress: 20,
+        patience: Math.min(100, cust.patience + 40),
+        cartVariantId: item.variantId,
+        billAmount: item.sellPrice,
+        cartItems: [
+          ...(cust.cartItems || []),
+          {
+            id: 'cart-' + Date.now(),
+            styleId: item.styleId,
+            styleName: item.styleName,
+            variantId: item.variantId,
+            size: item.size,
+            colorName: item.colorName,
+            sellPrice: item.sellPrice,
+            emoji: item.emoji
+          }
+        ],
+        requestedAlternativeSize: undefined
+      };
+
+      const updatedTasks = prev.storeTasks.map(t => 
+        t.targetCustomerId === customerId ? { ...t, status: 'completed' as const } : t
+      );
+
+      return {
+        ...prev,
+        playerCarry: prev.playerCarry.filter(i => i.id !== itemId),
+        customers: updatedCustomers,
+        storeTasks: updatedTasks
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Collect rejected fitting return item and return it to rack or backroom
+  const collectFittingReturn = useCallback((returnId: string, target: 'rack' | 'backroom') => {
+    setState(prev => {
+      const returnItem = prev.fittingReturns.find(r => r.id === returnId);
+      if (!returnItem) return prev;
+
+      const style = prev.styles[returnItem.styleId];
+      if (!style) return prev;
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === returnItem.variantId) {
+          return {
+            ...v,
+            floorStock: target === 'rack' ? v.floorStock + 1 : v.floorStock,
+            backroomStock: target === 'backroom' ? v.backroomStock + 1 : v.backroomStock
+          };
+        }
+        return v;
+      });
+
+      sound.playPop();
+      addFloatingNumber(`✨ Đã cất đồ thử về ${target === 'rack' ? 'kệ' : 'kho'}!`, 'clean');
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        fittingReturns: prev.fittingReturns.filter(r => r.id !== returnId),
+        storeTasks: prev.storeTasks.filter(t => t.id !== `task-return-${returnId}`)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Fulfill alternative size request for customer inside fitting room
+  const fulfillFittingSizeRequest = useCallback((customerId: string, newSize: string) => {
+    setState(prev => {
+      const custIdx = prev.customers.findIndex(c => c.id === customerId);
+      if (custIdx === -1) return prev;
+      const cust = prev.customers[custIdx];
+      const style = prev.styles[cust.targetStyleId];
+      if (!style) return prev;
+
+      const variant = style.variants.find(v => v.size === newSize && (v.floorStock > 0 || v.backroomStock > 0));
+      if (!variant) {
+        sound.playAngry();
+        addFloatingNumber(`❌ Size ${newSize} hết sạch cả kệ lẫn kho!`, 'sad');
+        return prev;
+      }
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === variant.id) {
+          if (v.floorStock > 0) {
+            return { ...v, floorStock: v.floorStock - 1, salesCount: v.salesCount + 1 };
+          } else {
+            return { ...v, backroomStock: v.backroomStock - 1, salesCount: v.salesCount + 1 };
+          }
+        }
+        return v;
+      });
+
+      sound.playPop();
+      addFloatingNumber(`🪞 Đưa size ${newSize} vào phòng thử!`, 'clean');
+
+      const updatedCustomers = [...prev.customers];
+      updatedCustomers[custIdx] = {
+        ...cust,
+        requestedSize: newSize,
+        requestedAlternativeSize: undefined,
+        cartVariantId: variant.id,
+        billAmount: variant.sellPrice,
+        patience: Math.min(100, cust.patience + 40),
+        stateProgress: 30,
+        fittingAttempts: (cust.fittingAttempts || 0) + 1
+      };
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        customers: updatedCustomers,
+        storeTasks: prev.storeTasks.map(t => 
+          (t.targetCustomerId === customerId && t.type === 'FITTING_SIZE_REQUEST') ? { ...t, status: 'completed' as const } : t
+        )
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Set game simulation speed: 0 (paused), 1 (1x normal), 2 (2x fast)
+  const setGameSpeed = useCallback((speed: number) => {
+    setState(prev => ({ ...prev, gameSpeed: speed }));
+  }, []);
+
+  // Transition from morning preparation to open store
+  const openStoreFromPreparation = useCallback(() => {
+    sound.playBell();
+    setState(prev => ({
+      ...prev,
+      dayPhase: 'MORNING',
+      isDayRunning: true,
+      gameSpeed: 1
+    }));
+  }, []);
 
   // Context-aware serve customer handler
   const serveCustomer = useCallback((customerId: string) => {
     const currentCust = stateRef.current.customers.find(c => c.id === customerId);
     if (!currentCust) return;
 
-    if (currentCust.state === 'browsing' || currentCust.state === 'entering') {
+    if (currentCust.state === 'browsing' || currentCust.state === 'entering' || currentCust.state === 'needs_assistance') {
       fetchItemForCustomer(customerId);
     } else if (currentCust.state === 'checkout') {
       checkoutCustomerManual(customerId);
@@ -844,6 +1174,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         day: prev.day + 1,
         dayTime: 0,
         isDayRunning: true,
+        gameSpeed: 1,
+        dayPhase: 'MORNING',
+        currentInGameMinutes: 480, // 08:00 AM
+        playerCarry: [],
+        fittingReturns: [],
+        storeTasks: [],
         cash: Math.max(0, prev.cash - (totalDailyPayroll + totalDailyRent)),
         customers: [],
         yesterdayStats: { ...prev.currentDayStats, payroll: totalDailyPayroll, rent: totalDailyRent },
@@ -856,9 +1192,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           profit: 0,
           customersServed: 0,
           customersLost: 0,
+          lostSalesValue: 0,
+          pendingCartValue: 0,
+          stockoutLostCount: 0,
+          queueAbandonCount: 0,
+          conversionRate: 0,
           onlineOrdersCompleted: 0,
           returnsProcessed: 0,
-          averageSatisfaction: 90
+          averageSatisfaction: 95
         }
       };
     });
@@ -900,10 +1241,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timer = setInterval(() => {
       const current = stateRef.current;
       if (!current.isDayRunning) return;
+      if (current.gameSpeed === 0) return; // ⏸ Paused simulation
 
-      // 1. Advance day timer (DAY_DURATION = 180s)
-      const nextDayTime = current.dayTime + 1;
-      if (nextDayTime >= DAY_DURATION) {
+      // Do not advance clock while in morning preparation
+      if (current.dayPhase === 'PREPARATION') return;
+
+      const speedMult = current.gameSpeed || 1;
+
+      // 1. Advance Day Timer and In-Game Clock
+      const nextDayTime = Math.min(DAY_DURATION, current.dayTime + speedMult);
+      const inGameMinutes = Math.min(1320, 480 + Math.floor((nextDayTime / DAY_DURATION) * 840));
+
+      // Determine Day Phase based on clock and customer count
+      let currentPhase: DayPhase = current.dayPhase;
+      if (inGameMinutes < 660) {
+        currentPhase = 'MORNING';
+      } else if (inGameMinutes < 840) {
+        currentPhase = 'LUNCH_PEAK';
+      } else if (inGameMinutes < 1020) {
+        currentPhase = 'AFTERNOON';
+      } else if (inGameMinutes < 1200) {
+        currentPhase = 'EVENING_PEAK';
+      } else if (nextDayTime < DAY_DURATION && inGameMinutes < 1320) {
+        currentPhase = 'CLOSING';
+      } else {
+        // After 22:00 or day duration elapsed: Grace period or End of Day
+        if (current.customers.length > 0) {
+          currentPhase = 'CLOSING_GRACE';
+        } else {
+          currentPhase = 'END_OF_DAY';
+        }
+      }
+
+      // Check for End of Day trigger
+      if (currentPhase === 'END_OF_DAY') {
         sound.playLevelUp();
         confetti({
           particleCount: 150,
@@ -914,18 +1285,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setState(prev => ({
           ...prev,
           dayTime: DAY_DURATION,
-          isDayRunning: false
+          currentInGameMinutes: 1320,
+          dayPhase: 'END_OF_DAY',
+          isDayRunning: false,
+          gameSpeed: 1
         }));
         return;
+      }
+
+      // Phase Traffic Multipliers
+      let phaseTrafficMultiplier = 1.0;
+      switch (currentPhase) {
+        case 'MORNING': phaseTrafficMultiplier = 0.9; break;
+        case 'LUNCH_PEAK': phaseTrafficMultiplier = 1.4; break;
+        case 'AFTERNOON': phaseTrafficMultiplier = 1.0; break;
+        case 'EVENING_PEAK': phaseTrafficMultiplier = 1.6; break;
+        case 'CLOSING': phaseTrafficMultiplier = 0.6; break;
+        case 'CLOSING_GRACE': phaseTrafficMultiplier = 0.0; break; // STRICT: NO NEW WALK-INS
+        default: phaseTrafficMultiplier = 1.0; break;
       }
 
       // 2. Cleanliness Logic (Traffic reduces, cleaners restore)
       let nextCleanliness = current.cleanliness;
       const cleanersOnShift = current.employees.filter(e => e.role === 'cleaning');
-      if (current.customers.length > 0 && Math.random() < 0.2) {
+      if (current.customers.length > 0 && Math.random() < 0.2 * speedMult) {
         nextCleanliness = Math.max(10, nextCleanliness - 1);
       }
-      if (cleanersOnShift.length > 0 && nextCleanliness < 100 && Math.random() < 0.3) {
+      if (cleanersOnShift.length > 0 && nextCleanliness < 100 && Math.random() < 0.35 * speedMult) {
         nextCleanliness = Math.min(100, nextCleanliness + cleanersOnShift.length * 2);
       }
 
@@ -934,7 +1320,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let remainingPOs: PurchaseOrder[] = [];
 
       for (const po of current.purchaseOrders) {
-        if (po.secondsRemaining <= 1) {
+        if (po.secondsRemaining <= speedMult) {
           const style = updatedStyles[po.styleId];
           if (style) {
             const updatedVariants = style.variants.map(v => {
@@ -956,7 +1342,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           remainingPOs.push({
             ...po,
-            secondsRemaining: po.secondsRemaining - 1
+            secondsRemaining: po.secondsRemaining - speedMult
           });
         }
       }
@@ -967,7 +1353,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const deliverySpeedBonus = current.upgrades.deliverySpeed.level * 10;
 
       for (const ord of current.onlineOrders) {
-        const nextProgress = ord.progress + 20 + deliverySpeedBonus;
+        const nextProgress = ord.progress + (20 + deliverySpeedBonus) * speedMult;
         if (nextProgress >= 100) {
           onlineOrderCashEarned += ord.totalAmount;
           sound.playCash();
@@ -981,7 +1367,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Spawn new online order
-      if (current.upgrades.deliverySpeed.level > 0 && nextOnlineOrders.length < 3 && Math.random() < 0.25) {
+      if (current.upgrades.deliverySpeed.level > 0 && nextOnlineOrders.length < 3 && Math.random() < (0.25 * speedMult)) {
         const styleKeys = Object.keys(updatedStyles);
         const randomStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
         const randomVar = randomStyle.variants[Math.floor(Math.random() * randomStyle.variants.length)];
@@ -1003,7 +1389,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 5. Customer Traffic Spawning (Influenced by cleanliness, manager, reviews)
+      // 5. Customer Traffic Spawning (No spawning during CLOSING_GRACE!)
       const avgReviewRating = current.reviews.length > 0 
         ? current.reviews.reduce((sum, r) => sum + r.stars, 0) / current.reviews.length 
         : 4.8;
@@ -1016,12 +1402,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const dynamicTrafficRate = (0.28 + (current.reputationStars * 0.06) + (current.upgrades.marketing.level * 0.08)) 
         * reviewModifier 
         * cleanlinessModifier 
-        * managerBonus;
+        * managerBonus
+        * phaseTrafficMultiplier;
 
       const maxCustomersInShop = 3 + current.upgrades.shopSpace.level * 2;
       let nextCustomers = [...current.customers];
 
-      if (nextCustomers.length < maxCustomersInShop && Math.random() < dynamicTrafficRate) {
+      if (currentPhase !== 'CLOSING_GRACE' && nextCustomers.length < maxCustomersInShop && Math.random() < (dynamicTrafficRate * speedMult)) {
         const styleKeys = Object.keys(updatedStyles);
         const chosenStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
         const chosenVar = chosenStyle.variants[Math.floor(Math.random() * chosenStyle.variants.length)];
@@ -1043,24 +1430,59 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           state: 'entering',
           stateProgress: 0,
           cartVariantId: chosenVar.id,
-          billAmount: chosenVar.sellPrice
+          billAmount: chosenVar.sellPrice,
+          cartItems: []
         };
         nextCustomers.push(newCust);
         sound.playBell();
       }
 
-      // 6. Process Customer Micro-loop (Manual player fetch & checkout + Staff Automation)
+      // 6. Process Staff Automation & Customer Micro-loop
       const salesAssociates = current.employees.filter(e => e.role === 'sales');
+      const stockAssociates = current.employees.filter(e => e.role === 'stock');
       const fittingAssistants = current.employees.filter(e => e.role === 'fitting');
       const cashiers = current.employees.filter(e => e.role === 'cashier');
 
-      const fittingSpeed = 12 + current.upgrades.fittingRooms.level * 6 + (fittingAssistants.length * 6);
-      const cashierScanSpeed = 16 + current.upgrades.posCounter.level * 8 + (cashiers.length * 10);
+      // 6a. Stock Associate Automation (Returns fitting returns or restocks low racks)
+      let nextFittingReturns = [...current.fittingReturns];
+      if (stockAssociates.length > 0 && Math.random() < (0.28 * stockAssociates.length * speedMult)) {
+        if (nextFittingReturns.length > 0) {
+          // Stock associate returns one fitting return item to rack or backroom
+          const returnToClear = nextFittingReturns[0];
+          nextFittingReturns = nextFittingReturns.slice(1);
+          const style = updatedStyles[returnToClear.styleId];
+          if (style) {
+            style.variants = style.variants.map(v => 
+              v.id === returnToClear.variantId ? { ...v, floorStock: v.floorStock + 1 } : v
+            );
+          }
+          addFloatingNumber(`📦 Nhân viên kho cất đồ thử về kệ`, 'clean');
+        } else {
+          // Stock associate restocks a low rack variant (floorStock <= 2 && backroomStock > 0)
+          for (const sId of Object.keys(updatedStyles)) {
+            const st = updatedStyles[sId];
+            const lowVar = st.variants.find(v => v.floorStock <= 2 && v.backroomStock > 0);
+            if (lowVar) {
+              const transferAmount = Math.min(3, lowVar.backroomStock);
+              lowVar.floorStock += transferAmount;
+              lowVar.backroomStock -= transferAmount;
+              addFloatingNumber(`📦 Kho tiếp +${transferAmount} ${st.name} lên kệ`, 'clean');
+              break;
+            }
+          }
+        }
+      }
+
+      const fittingSpeed = (12 + current.upgrades.fittingRooms.level * 6 + (fittingAssistants.length * 6)) * speedMult;
+      const cashierScanSpeed = (16 + current.upgrades.posCounter.level * 8 + (cashiers.length * 10)) * speedMult;
 
       let floorSalesCash = 0;
       let expEarned = 0;
       let servedCount = 0;
       let lostCount = 0;
+      let lostSalesVal = 0;
+      let stockoutLost = 0;
+      let queueAbandonLost = 0;
       let newReviews: CustomerReview[] = [];
       let salesStaffAssisted = false;
 
@@ -1073,8 +1495,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             break;
 
           case 'browsing': {
-            // If shop has hired Sales Consultants, they can assist 1 customer periodically
-            if (!salesStaffAssisted && salesAssociates.length > 0 && Math.random() < (0.25 * salesAssociates.length)) {
+            // If Sales Consultant is on duty, can assist waiting customer
+            if (!salesStaffAssisted && salesAssociates.length > 0 && Math.random() < (0.28 * salesAssociates.length * speedMult)) {
               const style = updatedStyles[updated.targetStyleId];
               if (style) {
                 const matchedVar = style.variants.find(v => v.id === updated.cartVariantId) || style.variants.find(v => v.floorStock > 0 || v.backroomStock > 0);
@@ -1084,7 +1506,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   matchedVar.salesCount += 1;
                   updated.state = 'fitting';
                   updated.stateProgress = 15;
-                  updated.patience = Math.min(100, updated.patience + 30);
+                  updated.patience = Math.min(100, updated.patience + 35);
+                  updated.cartItems = [{
+                    id: 'cart-' + Date.now(),
+                    styleId: style.id,
+                    styleName: style.name,
+                    variantId: matchedVar.id,
+                    size: matchedVar.size,
+                    colorName: matchedVar.colorName,
+                    sellPrice: matchedVar.sellPrice,
+                    emoji: style.emoji
+                  }];
                   salesStaffAssisted = true;
                   addFloatingNumber('💁‍♀️ Stylist lấy size cho khách', 'clean');
                   break;
@@ -1092,39 +1524,81 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
 
-            // Customer waits for player or sales staff! Patience decreases gently
+            // Customer waits for player or stylist! Patience ticks down
             const style = updatedStyles[updated.targetStyleId];
             const hasStock = style?.variants.some(v => v.floorStock > 0 || v.backroomStock > 0);
             if (hasStock) {
-              updated.patience -= 1;
+              updated.patience -= 1 * speedMult;
             } else {
-              updated.patience -= 3;
+              updated.patience -= 3 * speedMult;
             }
             break;
           }
 
-          case 'fitting':
+          case 'fitting': {
+            // Fitting Room Progress
             updated.stateProgress += fittingSpeed;
             if (updated.stateProgress >= 100) {
-              updated.state = 'checkout';
-              updated.stateProgress = 0;
+              // Fitting Room Decision Logic (Section 4)
+              const attempts = updated.fittingAttempts || 0;
+              const rand = Math.random();
+
+              if (attempts < 1 && rand < 0.20) {
+                // Customer requests an alternative size
+                const sizeList = ['S', 'M', 'L', 'XL'];
+                const curIdx = sizeList.indexOf(updated.requestedSize);
+                const altSize = curIdx >= 2 ? sizeList[curIdx - 1] : sizeList[curIdx + 1] || 'L';
+
+                updated.requestedAlternativeSize = altSize;
+                updated.state = 'fitting';
+                updated.stateProgress = 25;
+                updated.patience = Math.min(100, updated.patience + 25);
+                updated.fittingAttempts = attempts + 1;
+                sound.playPop();
+                addFloatingNumber(`🪞 Khách muốn đổi size ${altSize}!`, 'order');
+              } else if (rand < 0.10) {
+                // Customer rejects fit: item sent to fitting return bin
+                const style = updatedStyles[updated.targetStyleId];
+                if (style) {
+                  nextFittingReturns.push({
+                    id: 'ret-' + Date.now() + '-' + Math.random(),
+                    styleId: updated.targetStyleId,
+                    styleName: style.name,
+                    variantId: updated.cartVariantId || '',
+                    size: updated.requestedSize,
+                    colorName: updated.preferredColor,
+                    sellPrice: updated.billAmount || 0,
+                    emoji: style.emoji,
+                    timestamp: new Date().toLocaleTimeString(),
+                    returnedAt: Date.now()
+                  });
+                }
+                updated.state = 'angry';
+                updated.patience = 0;
+                addFloatingNumber('🪞 Đồ thử không vừa, khách gửi lại đồ!', 'sad');
+              } else {
+                // Accepted fit! Customer walks to checkout counter
+                updated.state = 'checkout';
+                updated.stateProgress = 0;
+              }
             } else {
-              updated.patience -= (nextCleanliness < 60 ? 2 : 1);
+              updated.patience -= (nextCleanliness < 60 ? 2 : 1) * speedMult;
             }
             break;
+          }
 
           case 'checkout':
-            // If Cashiers are hired, they automatically scan & ring up
+            // If Cashiers are hired, they scan and process payment automatically
             if (cashiers.length > 0) {
               updated.stateProgress += cashierScanSpeed;
               if (updated.stateProgress >= 100) {
                 updated.state = 'satisfied'; // Cashier finishes scanning -> payment credited!
               } else {
-                updated.patience -= 1;
+                updated.patience -= 1 * speedMult;
               }
             } else {
-              // No cashier hired: customer queues waiting for player to click "Quẹt mã & Thu tiền 💳"
-              updated.patience -= 1;
+              // No cashier hired: customer waits in queue for player POS action
+              updated.patience -= 1 * speedMult;
             }
             break;
 
@@ -1140,13 +1614,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return updated;
       });
 
-      // 7. Resolve finished customers (Only when satisfied/paid or angry/left)
+      // 7. Resolve finished customers
       const remainingCustomers: Customer[] = [];
       const branchBonus = current.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.revenueBonusPercent, 0) / 100;
 
       for (const cust of nextCustomers) {
         if (cust.state === 'satisfied') {
-          // This satisfied state happens when automated Cashier finished ringing up
+          // Cashier automated checkout completion
           const tipMultiplier = 1 + (0.05 * current.upgrades.posCounter.level) + branchBonus;
           const finalBill = Math.round((cust.billAmount || 180000) * tipMultiplier);
 
@@ -1156,7 +1630,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sound.playCash();
           addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (Thu ngân)`, 'money');
 
-          // Chance to leave a 5-star review
           if (Math.random() < 0.25) {
             newReviews.push({
               id: 'rev-' + Date.now() + '-' + Math.random(),
@@ -1171,11 +1644,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else if (cust.state === 'angry') {
           lostCount += 1;
+          lostSalesVal += cust.billAmount || 0;
+
+          if (cust.stateProgress === 0 && (cust.cartItems?.length || 0) === 0) {
+            stockoutLost += 1;
+          } else {
+            queueAbandonLost += 1;
+          }
+
+          // Return any unpurchased carried/cart item to fittingReturns bin so inventory is not lost
+          if (cust.cartVariantId) {
+            const style = updatedStyles[cust.targetStyleId];
+            if (style) {
+              nextFittingReturns.push({
+                id: 'ret-abandon-' + Date.now() + '-' + Math.random(),
+                styleId: cust.targetStyleId,
+                styleName: style.name,
+                variantId: cust.cartVariantId,
+                size: cust.requestedSize,
+                colorName: cust.preferredColor,
+                sellPrice: cust.billAmount || 0,
+                emoji: style.emoji,
+                timestamp: new Date().toLocaleTimeString(),
+                returnedAt: Date.now()
+              });
+            }
+          }
+
           sound.playAngry();
           addFloatingNumber('💔 Khách giận bỏ về!', 'sad');
 
-          // Chance to leave negative review
-          if (Math.random() < 0.45) {
+          if (Math.random() < 0.40) {
             newReviews.push({
               id: 'rev-' + Date.now() + '-' + Math.random(),
               customerName: cust.name,
@@ -1192,7 +1691,108 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 8. Level Up Star Reputation
+      // 8. Sync Store Tasks Queue (Section 6)
+      const tasks: StoreTask[] = [];
+
+      // 8a. Item requests for browsing customers
+      for (const c of remainingCustomers) {
+        if (c.state === 'browsing' || c.state === 'entering') {
+          tasks.push({
+            id: `task-req-${c.id}`,
+            type: 'CUSTOMER_ITEM_REQUEST',
+            title: `Lấy ${c.targetCategory} size ${c.requestedSize}`,
+            priority: c.patience < 40 ? 'high' : 'normal',
+            targetCustomerId: c.id,
+            targetStyleId: c.targetStyleId,
+            targetSize: c.requestedSize,
+            createdAt: Date.now(),
+            status: 'open'
+          });
+        } else if (c.state === 'fitting' && c.requestedAlternativeSize) {
+          tasks.push({
+            id: `task-alt-${c.id}`,
+            type: 'FITTING_SIZE_REQUEST',
+            title: `Đổi size ${c.requestedAlternativeSize} phòng thử`,
+            priority: 'urgent',
+            targetCustomerId: c.id,
+            targetStyleId: c.targetStyleId,
+            targetSize: c.requestedAlternativeSize,
+            createdAt: Date.now(),
+            status: 'open'
+          });
+        }
+      }
+
+      // 8b. Fitting return items to put back
+      for (const ret of nextFittingReturns) {
+        tasks.push({
+          id: `task-return-${ret.id}`,
+          type: 'RETURN_FITTING_ITEM',
+          title: `Cất ${ret.styleName} (${ret.size}) về kệ`,
+          priority: 'normal',
+          targetStyleId: ret.styleId,
+          targetSize: ret.size,
+          createdAt: ret.returnedAt || Date.now(),
+          status: 'open'
+        });
+      }
+
+      // 8c. Checkout queue tasks
+      const checkoutWaiting = remainingCustomers.filter(c => c.state === 'checkout');
+      if (checkoutWaiting.length > 0 && cashiers.length === 0) {
+        tasks.push({
+          id: 'task-cashier-queue',
+          type: 'CASHIER_NEEDED',
+          title: `Quẹt POS cho ${checkoutWaiting.length} khách đang đợi`,
+          priority: checkoutWaiting.length >= 2 ? 'urgent' : 'high',
+          createdAt: Date.now(),
+          status: 'open'
+        });
+      }
+
+      // 8d. Cleaning needed
+      if (nextCleanliness < 70) {
+        tasks.push({
+          id: 'task-cleaning-dirty',
+          type: 'CLEANING_NEEDED',
+          title: `Sàn tiệm dơ (${nextCleanliness}%) - Cần quét dọn`,
+          priority: nextCleanliness < 50 ? 'urgent' : 'normal',
+          createdAt: Date.now(),
+          status: 'open'
+        });
+      }
+
+      // 8e. Restock fixtures
+      for (const sId of Object.keys(updatedStyles)) {
+        const st = updatedStyles[sId];
+        const lowV = st.variants.find(v => v.floorStock <= 2 && v.backroomStock > 0);
+        if (lowV) {
+          tasks.push({
+            id: `task-restock-${st.id}-${lowV.id}`,
+            type: 'RESTOCK_FIXTURE',
+            title: `Châm thêm ${st.name} (${lowV.size}) lên kệ`,
+            priority: 'normal',
+            targetStyleId: st.id,
+            targetSize: lowV.size,
+            createdAt: Date.now(),
+            status: 'open'
+          });
+          break; // limit to 1 restock reminder per tick
+        }
+      }
+
+      // 9. Calculate Financial Metrics (Section 8)
+      // Pending cart value: sum of uncollected bills of customers currently in fitting or checkout
+      const pendingCartTotal = remainingCustomers
+        .filter(c => c.state === 'fitting' || c.state === 'checkout')
+        .reduce((sum, c) => sum + (c.billAmount || 0), 0);
+
+      const totalServedSoFar = current.currentDayStats.customersServed + servedCount;
+      const totalLostSoFar = current.currentDayStats.customersLost + lostCount;
+      const totalVisitors = totalServedSoFar + totalLostSoFar;
+      const conversionRateVal = Math.round((totalServedSoFar / Math.max(1, totalVisitors)) * 100);
+
+      // 10. Reputation Star Level Up
       let nextRepExp = current.reputationExp + expEarned;
       let nextStars = current.reputationStars;
       let nextThreshold = current.reputationNextExp;
@@ -1215,6 +1815,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setState(prev => ({
         ...prev,
         dayTime: nextDayTime,
+        currentInGameMinutes: inGameMinutes,
+        dayPhase: currentPhase,
         cash: prev.cash + totalEarnedThisTick,
         totalEarned: prev.totalEarned + totalEarnedThisTick,
         cleanliness: nextCleanliness,
@@ -1225,14 +1827,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         styles: updatedStyles,
         purchaseOrders: remainingPOs,
         onlineOrders: nextOnlineOrders,
+        fittingReturns: nextFittingReturns,
+        storeTasks: tasks,
         reviews: newReviews.length > 0 ? [...newReviews, ...prev.reviews].slice(0, 20) : prev.reviews,
         customers: remainingCustomers,
         currentDayStats: {
           ...prev.currentDayStats,
           revenue: prev.currentDayStats.revenue + totalEarnedThisTick,
           profit: prev.currentDayStats.profit + totalEarnedThisTick,
-          customersServed: prev.currentDayStats.customersServed + servedCount,
-          customersLost: prev.currentDayStats.customersLost + lostCount,
+          customersServed: totalServedSoFar,
+          customersLost: totalLostSoFar,
+          lostSalesValue: prev.currentDayStats.lostSalesValue + lostSalesVal,
+          pendingCartValue: pendingCartTotal,
+          stockoutLostCount: prev.currentDayStats.stockoutLostCount + stockoutLost,
+          queueAbandonCount: prev.currentDayStats.queueAbandonCount + queueAbandonLost,
+          conversionRate: conversionRateVal,
           onlineOrdersCompleted: prev.currentDayStats.onlineOrdersCompleted + (onlineOrderCashEarned > 0 ? 1 : 0)
         }
       }));
@@ -1257,6 +1866,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rushFitting,
         rushCheckout,
         sweepFloor,
+        pickItemToCarry,
+        dropCarriedItem,
+        giveCarriedItemToCustomer,
+        collectFittingReturn,
+        fulfillFittingSizeRequest,
+        setGameSpeed,
+        openStoreFromPreparation,
         resolveReturn,
         speedUpOnlineOrder,
         hireEmployee,

@@ -18,7 +18,6 @@ import { useGame } from '../context/GameContext';
 export const ShopFloor: React.FC = () => {
   const { 
     state, 
-    serveCustomer, 
     fetchItemForCustomer,
     checkoutCustomerManual,
     rushFitting, 
@@ -26,7 +25,12 @@ export const ShopFloor: React.FC = () => {
     replenishAllStyleToFloor, 
     resolveReturn,
     sweepFloor,
-    setActiveTab 
+    setActiveTab,
+    pickItemToCarry,
+    dropCarriedItem,
+    giveCarriedItemToCustomer,
+    collectFittingReturn,
+    fulfillFittingSizeRequest
   } = useGame();
 
   const fittingCustomers = state.customers.filter(c => c.state === 'fitting');
@@ -35,7 +39,120 @@ export const ShopFloor: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Quick Actions */}
+      {/* 1. Player Carry Tray & Store Tasks Strip */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Player Hands Tray */}
+        <div className="lg:col-span-2 bg-gradient-to-r from-pink-50 via-purple-50 to-indigo-50 p-3.5 rounded-3xl border-2 border-pink-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✋</span>
+              <div>
+                <h3 className="text-xs md:text-sm font-heading font-extrabold text-slate-800 m-0">
+                  Đồ Đang Cầm Trên Tay ({state.playerCarry.length}/{state.playerCarryCapacity})
+                </h3>
+                <span className="text-[10px] text-slate-500">
+                  Cầm hàng trực tiếp từ kệ/kho đưa tận tay cho khách hoặc phòng thử
+                </span>
+              </div>
+            </div>
+            {state.playerCarry.length > 0 && (
+              <span className="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-bold">
+                Đang giữ {state.playerCarry.length} món
+              </span>
+            )}
+          </div>
+
+          {state.playerCarry.length === 0 ? (
+            <div className="py-2.5 px-3 bg-white/70 border border-dashed border-pink-200 rounded-2xl text-center text-xs text-slate-400">
+              Tay bạn đang trống. Nhấn <span className="font-bold text-pink-600">"Cầm ✋"</span> tại bất kỳ kệ hàng nào bên dưới để lấy đồ!
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {state.playerCarry.map(item => (
+                <div key={item.id} className="bg-white p-2.5 rounded-2xl border border-pink-200 shadow-xs flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xl">{item.emoji}</span>
+                    <div className="truncate">
+                      <div className="text-xs font-heading font-bold text-slate-800 truncate">
+                        {item.styleName}
+                      </div>
+                      <div className="text-[10px] text-pink-600 font-semibold">
+                        Size {item.size} • {item.colorName}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                    <button
+                      onClick={() => dropCarriedItem(item.id, 'rack')}
+                      className="flex-1 py-1 px-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold"
+                      title="Cất lại lên kệ"
+                    >
+                      Trả về kệ
+                    </button>
+                    <button
+                      onClick={() => dropCarriedItem(item.id, 'backroom')}
+                      className="flex-1 py-1 px-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold"
+                      title="Cất vào kho"
+                    >
+                      Trả về kho
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Fitting Returns Bin */}
+        <div className="bg-amber-50/80 p-3.5 rounded-3xl border-2 border-amber-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🧺</span>
+              <div>
+                <h3 className="text-xs md:text-sm font-heading font-extrabold text-amber-900 m-0">
+                  Khay Đồ Khách Trả Lại ({state.fittingReturns.length})
+                </h3>
+                <span className="text-[10px] text-amber-700">
+                  Đồ thử không vừa cần cất về kệ/kho
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {state.fittingReturns.length === 0 ? (
+            <div className="py-2.5 px-3 bg-white/70 border border-dashed border-amber-200 rounded-2xl text-center text-xs text-amber-600/70">
+              Khay gọn gàng, không có đồ trả lại!
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-[110px] overflow-y-auto pr-1">
+              {state.fittingReturns.map(ret => (
+                <div key={ret.id} className="bg-white p-2 rounded-xl border border-amber-200 flex items-center justify-between gap-1 shadow-xs text-xs">
+                  <div className="truncate">
+                    <span className="font-bold text-slate-800">{ret.emoji} {ret.styleName}</span>
+                    <span className="text-[10px] text-amber-700 block">Size {ret.size} • {ret.colorName}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => collectFittingReturn(ret.id, 'rack')}
+                      className="px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[10px] font-bold"
+                    >
+                      Kệ
+                    </button>
+                    <button
+                      onClick={() => collectFittingReturn(ret.id, 'backroom')}
+                      className="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-[10px] font-bold"
+                    >
+                      Kho
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Top Banner Quick Actions */}
       <div className="bg-gradient-to-r from-pink-100 via-purple-100 to-amber-100 p-4 rounded-3xl border-2 border-pink-200 flex flex-wrap items-center justify-between gap-3 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-pink-500 shadow-sm font-bold text-lg">
@@ -46,7 +163,9 @@ export const ShopFloor: React.FC = () => {
               Sàn Bán Hàng ({state.customers.length}/{3 + state.upgrades.shopSpace.level * 2} khách)
             </h2>
             <p className="text-xs text-slate-500">
-              Chạm vào khách để Stylist tư vấn phục vụ và hồi phục kiên nhẫn!
+              {state.storeTasks.length > 0 
+                ? `Đang có ${state.storeTasks.length} nhiệm vụ sàn cần xử lý!` 
+                : 'Chạm vào khách hoặc cầm đồ đưa tận tay để phục vụ!'}
             </p>
           </div>
         </div>
@@ -189,12 +308,12 @@ export const ShopFloor: React.FC = () => {
         </div>
       )}
 
-      {/* 6 Fashion Racks with Variant Availability */}
+      {/* 6 Fashion Racks with Variant Availability & Manual Pick-to-Carry */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-heading font-bold text-slate-700 flex items-center gap-1.5 m-0">
             <ShoppingBag className="w-4 h-4 text-pink-500" />
-            Kệ Hàng Thời Trang Trưng Bày
+            Kệ Hàng Thời Trang Trưng Bày & Cầm Lên Tay
           </h3>
           <button 
             onClick={() => setActiveTab('inventory')}
@@ -204,7 +323,7 @@ export const ShopFloor: React.FC = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {Object.values(state.styles).map((style) => {
             const totalFloor = style.variants.reduce((sum, v) => sum + v.floorStock, 0);
             const totalBackroom = style.variants.reduce((sum, v) => sum + v.backroomStock, 0);
@@ -214,12 +333,6 @@ export const ShopFloor: React.FC = () => {
             return (
               <motion.div
                 key={style.id}
-                animate={{ y: [0, -5, 0] }}
-                transition={{ 
-                  duration: 3 + (style.id.length % 2), 
-                  repeat: Infinity, 
-                  ease: "easeInOut" 
-                }}
                 className={`relative bg-white rounded-3xl p-4 border-2 shadow-game-card transition-all flex flex-col justify-between ${
                   isOutOfStock && !canReplenish
                     ? 'border-rose-300 bg-rose-50/40' 
@@ -260,7 +373,7 @@ export const ShopFloor: React.FC = () => {
                   </h4>
 
                   {/* Stock Metrics (Floor vs Backroom) */}
-                  <div className="space-y-1 mb-3 bg-slate-50 p-2 rounded-xl text-[11px] font-semibold">
+                  <div className="space-y-1 mb-2 bg-slate-50 p-2 rounded-xl text-[11px] font-semibold">
                     <div className="flex justify-between text-slate-700">
                       <span>Trên kệ bán lẻ:</span>
                       <span className={totalFloor === 0 ? 'text-rose-500 font-bold' : 'text-emerald-700 font-bold'}>
@@ -275,16 +388,50 @@ export const ShopFloor: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Variant Pills Preview */}
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {style.variants.slice(0, 3).map(v => (
-                      <span key={v.id} className="text-[9px] bg-pink-100/70 text-pink-700 px-1.5 py-0.5 rounded-md font-semibold">
-                        {v.size} ({v.floorStock})
-                      </span>
-                    ))}
-                    {style.variants.length > 3 && (
-                      <span className="text-[9px] text-slate-400 py-0.5">+{style.variants.length - 3}</span>
-                    )}
+                  {/* Variant Pick-to-Carry List */}
+                  <div className="space-y-1.5 mb-3">
+                    <div className="text-[10px] font-bold text-slate-500 flex justify-between">
+                      <span>Phân loại size:</span>
+                      <span className="text-pink-600">Bấm để Cầm lên tay ✋</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {style.variants.map(v => {
+                        const hasFloor = v.floorStock > 0;
+                        const hasBackroom = v.backroomStock > 0;
+                        return (
+                          <div 
+                            key={v.id} 
+                            className="bg-pink-50/60 border border-pink-200/80 p-1.5 rounded-xl flex items-center justify-between text-[10px]"
+                          >
+                            <div>
+                              <span className="font-extrabold text-slate-800">{v.size}</span>
+                              <span className="text-slate-500 block text-[9px]">{v.colorName}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {hasFloor ? (
+                                <button
+                                  onClick={() => pickItemToCarry(style.id, v.id, 'rack')}
+                                  className="px-1.5 py-0.5 bg-pink-500 hover:bg-pink-600 text-white rounded-md font-bold text-[9px] shadow-xs"
+                                  title={`Cầm size ${v.size} từ kệ`}
+                                >
+                                  Kệ ({v.floorStock})
+                                </button>
+                              ) : hasBackroom ? (
+                                <button
+                                  onClick={() => pickItemToCarry(style.id, v.id, 'backroom')}
+                                  className="px-1.5 py-0.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-bold text-[9px] shadow-xs"
+                                  title={`Cầm size ${v.size} từ kho`}
+                                >
+                                  Kho ({v.backroomStock})
+                                </button>
+                              ) : (
+                                <span className="text-rose-400 font-semibold text-[9px]">Hết</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -344,40 +491,52 @@ export const ShopFloor: React.FC = () => {
           </div>
 
           {/* Fitting Stalls */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[...Array(state.upgrades.fittingRooms.level)].map((_, index) => {
               const cust = fittingCustomers[index];
               return (
                 <div 
                   key={index}
-                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[110px] transition-all ${
+                  className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[120px] transition-all ${
                     cust 
                       ? 'border-purple-300 bg-purple-50/60 shadow-sm' 
                       : 'border-dashed border-slate-200 bg-slate-50/40 text-slate-400'
                   }`}
                 >
                   {cust ? (
-                    <motion.div 
-                      className="w-full text-center cursor-pointer"
-                      onClick={() => serveCustomer(cust.id)}
-                      whileHover={{ scale: 1.05 }}
-                    >
+                    <div className="w-full text-center">
                       <div className="text-2xl mb-1 animate-bounceShort">
                         {cust.avatar}
                       </div>
-                      <div className="text-[11px] font-heading font-bold text-purple-900 truncate">
+                      <div className="text-xs font-heading font-bold text-purple-900 truncate">
                         {cust.name}
                       </div>
-                      <div className="text-[9px] text-purple-600 font-medium truncate">
-                        Thử Size {cust.requestedSize}
-                      </div>
+                      
+                      {cust.requestedAlternativeSize ? (
+                        <div className="my-1.5 p-1.5 bg-amber-100 border border-amber-300 rounded-xl text-center">
+                          <span className="text-[10px] text-amber-800 font-extrabold block">
+                            Muốn đổi Size {cust.requestedAlternativeSize}!
+                          </span>
+                          <button
+                            onClick={() => fulfillFittingSizeRequest(cust.id, cust.requestedAlternativeSize!)}
+                            className="mt-1 w-full py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold shadow-xs"
+                          >
+                            Đưa size {cust.requestedAlternativeSize} vào 🪞
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-purple-600 font-medium truncate">
+                          Đang thử Size {cust.requestedSize}
+                        </div>
+                      )}
+
                       <div className="w-full bg-purple-200 rounded-full h-1.5 mt-1 overflow-hidden">
                         <div 
                           className="bg-purple-600 h-full rounded-full transition-all duration-300"
                           style={{ width: `${cust.stateProgress}%` }}
                         />
                       </div>
-                    </motion.div>
+                    </div>
                   ) : (
                     <div className="text-center">
                       <span className="text-xl opacity-40">🚪</span>
@@ -418,7 +577,7 @@ export const ShopFloor: React.FC = () => {
 
           {/* Checkout Queue */}
           {checkoutCustomers.length === 0 ? (
-            <div className="h-[110px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/40 text-slate-400">
+            <div className="h-[120px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/40 text-slate-400">
               <span className="text-xl opacity-40">🛒</span>
               <span className="text-xs mt-1">Chưa có khách chờ tính tiền</span>
             </div>
@@ -464,7 +623,7 @@ export const ShopFloor: React.FC = () => {
         </div>
       </div>
 
-      {/* Browsing Customers on Shop Floor */}
+      {/* Browsing Customers on Shop Floor with Direct Hand-Over */}
       <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 border-2 border-pink-200 shadow-game-card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm md:text-base font-heading font-bold text-slate-800 flex items-center gap-2 m-0">
@@ -472,7 +631,7 @@ export const ShopFloor: React.FC = () => {
             Khách Đang Chờ Lấy Đồ ({browsingCustomers.length})
           </h3>
           <span className="text-xs text-slate-400">
-            Người chơi trực tiếp lấy hàng đưa cho khách thử đồ!
+            Cầm đồ trên tay đưa cho khách hoặc bấm lấy hàng tự động
           </span>
         </div>
 
@@ -493,11 +652,23 @@ export const ShopFloor: React.FC = () => {
               const backroomStock = targetVar ? targetVar.backroomStock : 0;
               const hasAnyStock = floorStock > 0 || backroomStock > 0;
 
+              // Check if player has exact match on carry
+              const carriedMatch = state.playerCarry.find(
+                item => item.styleId === cust.targetStyleId && item.size === (cust.requestedAlternativeSize || cust.requestedSize)
+              );
+
+              // Check if player has wrong item on carry
+              const carriedWrong = state.playerCarry.find(
+                item => item.styleId === cust.targetStyleId && item.size !== (cust.requestedAlternativeSize || cust.requestedSize)
+              );
+
               return (
                 <div
                   key={cust.id}
                   className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
-                    !hasAnyStock
+                    carriedMatch 
+                      ? 'bg-emerald-50/70 border-emerald-400 shadow-sm'
+                      : !hasAnyStock
                       ? 'bg-rose-50/70 border-rose-300 shadow-sm'
                       : floorStock === 0 && backroomStock > 0
                       ? 'bg-purple-50/50 border-purple-200 shadow-sm'
@@ -526,12 +697,12 @@ export const ShopFloor: React.FC = () => {
                         {targetStyle?.emoji} {targetStyle?.name}
                       </div>
                       <div className="text-[10px] text-slate-500 mt-0.5">
-                        Màu: <span className="font-semibold text-slate-700">{cust.preferredColor}</span> • Size: <span className="font-bold text-pink-600">{cust.requestedSize}</span>
+                        Màu: <span className="font-semibold text-slate-700">{cust.preferredColor}</span> • Cần Size: <span className="font-extrabold text-pink-600">{cust.requestedSize}</span>
                       </div>
                     </div>
 
                     {/* Stock status pill */}
-                    <div className="mb-2.5 flex items-center justify-between">
+                    <div className="mb-2 flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-slate-500">Tồn kho size này:</span>
                       {floorStock > 0 ? (
                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold">
@@ -571,18 +742,34 @@ export const ShopFloor: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Manual Action Button */}
-                  <div>
-                    {hasAnyStock ? (
+                  {/* Manual Action Buttons */}
+                  <div className="space-y-1.5">
+                    {/* If player has matching item in hand */}
+                    {carriedMatch ? (
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.96 }}
+                        onClick={() => giveCarriedItemToCustomer(cust.id, carriedMatch.id)}
+                        className="btn-3d w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-heading font-extrabold text-xs shadow-game-btn-green flex items-center justify-center gap-1.5 animate-pulse"
+                      >
+                        <Sparkles className="w-4 h-4 text-yellow-300" />
+                        <span>Đưa đồ trên tay ({carriedMatch.size}) cho khách! ✋</span>
+                      </motion.button>
+                    ) : carriedWrong ? (
+                      <div className="text-[10px] text-amber-700 bg-amber-100 p-1.5 rounded-lg text-center font-bold">
+                        ⚠️ Bạn đang cầm size {carriedWrong.size}, khách cần size {cust.requestedSize}!
+                      </div>
+                    ) : null}
+
+                    {/* Standard direct fetch from shelf/backroom */}
+                    {hasAnyStock ? (
+                      <button
                         onClick={() => fetchItemForCustomer(cust.id)}
-                        className="btn-3d w-full py-2 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-bold text-xs shadow-game-btn flex items-center justify-center gap-1.5"
+                        className="w-full py-1.5 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-bold text-xs shadow-game-btn flex items-center justify-center gap-1.5"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>Lấy hàng & Đưa khách 🛍️</span>
-                      </motion.button>
+                        <span>Lấy từ kệ & Đưa khách 🛍️</span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => setActiveTab('procurement')}

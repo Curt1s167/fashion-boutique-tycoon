@@ -174,10 +174,24 @@ export interface BranchStore {
 export type CustomerState = 
   | 'entering' 
   | 'browsing' 
+  | 'needs_assistance'
+  | 'waiting_item'
   | 'fitting' 
+  | 'deciding'
   | 'checkout' 
   | 'satisfied' 
   | 'angry';
+
+export interface CustomerCartItem {
+  id: string;
+  styleId: string;
+  styleName: string;
+  variantId: string;
+  size: string;
+  colorName: string;
+  sellPrice: number;
+  emoji: string;
+}
 
 export interface Customer {
   id: string;
@@ -194,6 +208,9 @@ export interface Customer {
   state: CustomerState;
   stateProgress: number;
   cartVariantId?: string;
+  cartItems?: CustomerCartItem[]; // Items customer is holding/trying on
+  requestedAlternativeSize?: string; // If in fitting room and requests new size
+  fittingAttempts?: number;
   billAmount?: number;
 }
 
@@ -234,6 +251,11 @@ export interface DayStats {
   profit: number;
   customersServed: number;
   customersLost: number;
+  lostSalesValue: number; // Missed sales due to stockouts & queue/fitting abandonment
+  pendingCartValue: number; // Value of items in fitting/checkout carts (not cash!)
+  stockoutLostCount: number;
+  queueAbandonCount: number;
+  conversionRate: number; // Completed buyers / Total visitors (0 - 100%)
   onlineOrdersCompleted: number;
   returnsProcessed: number;
   averageSatisfaction: number;
@@ -249,6 +271,81 @@ export interface SaveSlotMetadata {
   savedAt: number;
 }
 
+export type DayPhase = 
+  | 'PREPARATION' 
+  | 'MORNING' 
+  | 'LUNCH_PEAK' 
+  | 'AFTERNOON' 
+  | 'EVENING_PEAK' 
+  | 'CLOSING' 
+  | 'CLOSING_GRACE' 
+  | 'END_OF_DAY';
+
+export interface GameTimeConfig {
+  openHour: number; // 8
+  closeHour: number; // 22
+  realSecondsPerGameHour: number;
+  preparationTimed: boolean;
+  closingGraceEnabled: boolean;
+  maxClosingGraceMinutes: number;
+}
+
+export interface PlayerCarryItem {
+  id: string;
+  styleId: string;
+  styleName: string;
+  variantId: string;
+  size: string;
+  colorName: string;
+  colorHex: string;
+  emoji: string;
+  costPrice: number;
+  sellPrice: number;
+  source: 'rack' | 'backroom' | 'fitting_return';
+}
+
+export interface FittingReturnItem {
+  id: string;
+  styleId: string;
+  styleName: string;
+  variantId: string;
+  size: string;
+  colorName: string;
+  emoji: string;
+  sellPrice: number;
+  timestamp: string;
+  returnedAt?: number;
+}
+
+export type StoreTaskType = 
+  | 'CUSTOMER_ITEM_REQUEST'
+  | 'FITTING_SIZE_REQUEST'
+  | 'RETURN_FITTING_ITEM'
+  | 'RESTOCK_FIXTURE'
+  | 'CASHIER_NEEDED'
+  | 'CLEANING_NEEDED';
+
+export type StoreTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type StoreTaskStatus = 'open' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface StoreTask {
+  id: string;
+  type: StoreTaskType;
+  title: string;
+  description?: string;
+  priority: StoreTaskPriority;
+  status: StoreTaskStatus;
+  targetCustomerId?: string;
+  targetStyleId?: string;
+  targetVariantId?: string;
+  targetSize?: string;
+  requiredRole?: StaffRole;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  createdAt?: number;
+  createdAtTime?: number;
+}
+
 export interface GameState {
   cash: number;
   totalEarned: number;
@@ -258,6 +355,21 @@ export interface GameState {
   day: number;
   dayTime: number; // 0 to 180s (DAY_DURATION)
   isDayRunning: boolean;
+
+  // Central Clock & Simulation Speed
+  gameSpeed: number; // 0 = paused, 1 = 1x, 2 = 2x
+  dayPhase: DayPhase;
+  currentInGameMinutes: number; // 480 (08:00) to 1320 (22:00)
+
+  // Manual Storeplay & Carry System
+  playerCarry: PlayerCarryItem[];
+  playerCarryCapacity: number; // default 3
+
+  // Store Floor Task System
+  storeTasks: StoreTask[];
+
+  // Fitting Room Rejected Items Bin
+  fittingReturns: FittingReturnItem[];
 
   // Cleanliness of Store Floor & Fitting Rooms (0 - 100%)
   cleanliness: number;
