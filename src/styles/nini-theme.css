@@ -1,0 +1,73 @@
+/* Nini Brand Visual System & PWA Safe Area Tokens */
+:root {
+  /* Core Brand Colors */
+  --nini-pink: #FDA0A2;
+  --nini-pink-soft: #FFB7B2;
+  --nini-peach: #FCC7A1;
+  --nini-cream: #FAE2D2;
+  --nini-tan: #DDAA8C;
+  --nini-cocoa: #936451;
+  --nini-cocoa-dark: #5B3B33;
+  --nini-mint: #BAD5BC;
+  --nini-blue: #D0E0E2;
+
+  /* Surfaces */
+  --nini-bg: #FFF7F3;
+  --nini-surface: #FFF7F3;
+  --nini-surface-strong: #FFE9E5;
+  --nini-surface-card: #FFFFFF;
+
+  /* Typography & Warm Outlines */
+  --nini-text: #5B3B33;
+  --nini-text-muted: #8B6A60;
+  --nini-outline: rgba(147, 100, 81, 0.22);
+  --nini-outline-strong: #936451;
+
+  /* Semantics */
+  --nini-success: #97C8A4;
+  --nini-warning: #F2C879;
+  --nini-danger: #E98282;
+
+  /* Safe Area Insets */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+/* Safe Area Utility Classes */
+.safe-top {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.safe-area-container {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+/* Nini Tactile Outlines & 3D Arcade Buttons */
+.nini-card {
+  background-color: var(--nini-surface-card);
+  border: 2px solid var(--nini-outline);
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 12px rgba(147, 100, 81, 0.08);
+}
+
+.nini-btn-primary {
+  background: linear-gradient(135deg, #FDA0A2 0%, #FCC7A1 100%);
+  color: #5B3B33;
+  border: 2px solid #936451;
+  box-shadow: 0 4px 0 #936451;
+  transition: all 0.15s ease;
+}
+
+.nini-btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #936451;
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Coins, Star, Volume2, VolumeX, Store, ArrowLeftRight } from 'lucide-react';
+import { Clock, Coins, Star, Volume2, VolumeX, ArrowLeftRight } from 'lucide-react';
 import { useGame, DAY_DURATION } from '../../context/GameContext';
 
 interface WorkstationHUDProps {
@@ -36,17 +36,17 @@ export const WorkstationHUD: React.FC<WorkstationHUDProps> = ({ onToggleViewMode
       {/* Top HUD: Time, Phase, Speed, Mode Switcher */}
       <div className="flex items-center justify-between gap-1.5 text-xs">
         <div className="flex items-center gap-1.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-400 to-rose-400 flex items-center justify-center text-white shadow-xs">
-            <Store className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-xl bg-[#FDA0A2] border border-[#936451]/20 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
+            <img src="/pwa/favicon-32.png" alt="Nini" className="w-full h-full object-cover" />
           </div>
           <div>
-            <div className="font-heading font-extrabold text-slate-800 flex items-center gap-1">
-              <span>Ngày {state.day}</span>
-              <span className="text-pink-600 font-mono">({virtualClock})</span>
+            <div className="font-heading font-extrabold text-[#5B3B33] flex items-center gap-1">
+              <span>Nini</span>
+              <span className="text-[#FDA0A2] font-mono">({virtualClock})</span>
             </div>
-            <div className="text-[10px] text-purple-700 font-semibold flex items-center gap-1">
-              <Clock className="w-3 h-3 text-purple-500" />
-              <span>{timeFormatted}</span>
+            <div className="text-[10px] text-[#8B6A60] font-semibold flex items-center gap-1">
+              <Clock className="w-3 h-3 text-[#FDA0A2]" />
+              <span>Ngày {state.day} • {timeFormatted}</span>
             </div>
           </div>
         </div>

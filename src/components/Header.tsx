@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Star, Volume2, VolumeX, Coins, Clock, Store, RotateCcw } from 'lucide-react';
+import { Sparkles, Star, Volume2, VolumeX, Coins, Clock, RotateCcw } from 'lucide-react';
 import { useGame, DAY_DURATION } from '../context/GameContext';
 
 export const Header: React.FC = () => {
@@ -58,21 +58,25 @@ export const Header: React.FC = () => {
             <motion.div 
               whileHover={{ scale: 1.08, rotate: 6 }}
               whileTap={{ scale: 0.95 }}
-              className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-400 via-rose-400 to-amber-300 flex items-center justify-center shadow-game-btn-pink cursor-pointer"
+              className="w-10 h-10 rounded-2xl bg-[#FDA0A2] border-2 border-[#936451]/20 flex items-center justify-center shadow-xs cursor-pointer overflow-hidden shrink-0"
             >
-              <Store className="w-5 h-5 text-white" />
+              <img src="/pwa/nini-192.png" alt="Nini" className="w-full h-full object-cover" />
             </motion.div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-lg md:text-xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-rose-500 tracking-tight m-0">
-                  Tiệm Thời Trang Mơ Ước
+                <h1 className="text-lg md:text-xl font-heading font-extrabold text-[#5B3B33] tracking-tight m-0 flex items-center gap-1">
+                  <span>Nini</span>
+                  <span className="text-xs font-bold text-[#FDA0A2] font-sans">♡</span>
                 </h1>
-                <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-md bg-[#FFE9E5] text-[#936451] uppercase tracking-wider">
+                  Fashion Shop
+                </span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400 animate-pulse" />
               </div>
-              <div className="text-xs font-semibold text-pink-500 flex items-center gap-2">
+              <div className="text-xs font-semibold text-[#8B6A60] flex items-center gap-2">
                 <span className="truncate max-w-[130px]">{activeBranch.name}</span>
                 <span>•</span>
-                <span className="text-purple-600 font-bold">Ngày {state.day}</span>
+                <span className="text-[#FDA0A2] font-bold">Ngày {state.day}</span>
               </div>
             </div>
           </div>

@@ -140,3 +140,27 @@
 - **UI density on mobile**: Keep sub-systems accessible via clean tab navigation with status notification badges.
 - **Simulation overhead**: Pure pure-state reducers with immutability, ensuring 60FPS fluid gameplay.
 - **TypeScript strictness**: Keep all types cleanly exported and use `import type` for zero build warnings.
+
+---
+
+## 16. Nini Brand & Installable PWA Architecture (Implementation Audit)
+- **Visual Identity & Theme**:
+  - Palette tokens in `src/styles/nini-theme.css`: Nini Pink (`#FDA0A2`), Peach Cream (`#FFF3EB`), Nini Cream (`#FFFBF7`), Cocoa Warm (`#533935`), Mint (`#A9DFBF`), Soft Blue (`#AED6F1`).
+  - Font families: Quicksand (headers/body), Fredoka (chubby labels & numbers).
+  - Safe-area CSS: Standard mobile insets (`safe-top`, `safe-bottom`, `safe-left`, `safe-right`) mapped to `env(safe-area-inset-*)` with viewport-fit=cover.
+- **Extracted Brand Assets (`public/` & `public/brand/`)**:
+  - `nini-brand-board.png`: Sourced directly from visual design board.
+  - `nini-logo.png`, `nini-avatar.png`, `nini-character.png`, `nini-pet.png`: High-resolution transparent PNG crops.
+  - `public/pwa/`: `nini-192.png`, `nini-512.png`, `nini-maskable-512.png` (80% circle safe zone on `#FDA0A2`), `apple-touch-icon.png` (180x180), `favicon-32.png`, `favicon-48.png`, and `favicon.ico`.
+- **PWA Configuration**:
+  - `vite-plugin-pwa` installed cleanly via `npm install -D vite-plugin-pwa` maintaining `package-lock.json`.
+  - `vite.config.ts`: `registerType: 'prompt'`, standalone portrait orientation (`portrait`), Web Manifest metadata (`name: "Nini — Fashion Shop Simulator"`, `short_name: "Nini"`).
+  - Runtime font caching configured for Google Fonts (`fonts.googleapis.com` & `fonts.gstatic.com`).
+- **Install & Safe Update UX**:
+  - `usePwa` hook tracks `beforeinstallprompt`, iOS browser heuristics, and standalone detection.
+  - Custom Chromium banner CTA + iOS "Add to Home Screen" Safari step-by-step instructions.
+  - Update banner strictly honors `isTransactionActive` flag: prevents auto-reload while checkout/fitting room transactions are underway.
+- **Save Layer Separation**:
+  - Game progression lives exclusively in versioned `localStorage` (`FASHION_TYCOON_SAVE_V1`).
+  - Service worker precaching and runtime caches are strictly isolated from game state; updating, closing, or installing the PWA never erases or duplicates player saves.
+

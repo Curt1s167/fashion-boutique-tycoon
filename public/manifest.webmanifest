@@ -1,0 +1,42 @@
+{
+  "name": "Nini — Fashion Shop Simulator",
+  "short_name": "Nini",
+  "description": "Tiệm Thời Trang Nini đáng yêu — Trải nghiệm quản lý boutique, phối đồ và phục vụ khách hàng vui nhộn!",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "theme_color": "#FDA0A2",
+  "background_color": "#FFF7F3",
+  "icons": [
+    {
+      "src": "/pwa/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/favicon-48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/nini-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/nini-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/nini-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["games", "simulation", "entertainment"]
+}

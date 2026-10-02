@@ -31,6 +31,7 @@ import { BusinessAdvisorModal } from './components/BusinessAdvisorModal';
 import { SaveSlotModal } from './components/SaveSlotModal';
 import { CuteWhyModal } from './components/CuteWhyModal';
 import { Week7ReviewModal } from './components/Week7ReviewModal';
+import { PwaInstallPrompt } from './components/pwa/PwaInstallPrompt';
 
 const GameMain: React.FC = () => {
   const { activeTab, setActiveTab, state } = useGame();
@@ -114,6 +115,7 @@ const GameMain: React.FC = () => {
       <SaveSlotModal />
       <CuteWhyModal />
       <Week7ReviewModal />
+      <PwaInstallPrompt />
 
       {/* Main Container */}
       <main className="max-w-6xl w-full mx-auto px-4 py-5 flex-1 flex flex-col">
