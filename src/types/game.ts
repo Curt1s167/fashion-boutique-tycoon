@@ -423,6 +423,25 @@ export interface GameState {
   // Strategic Advisor Insights
   advisorInsights: BusinessAdvisorInsight[];
 
+  // Workstation UI & Preparation Table (ANTIGRAVITY_INTERACTIVE_WORKSTATION_UI_SPEC)
+  prepTableItems: Array<{
+    id: string;
+    styleId: string;
+    styleName: string;
+    variantId: string;
+    size: string;
+    colorName: string;
+    colorHex: string;
+    emoji: string;
+    sellPrice: number;
+    costPrice: number;
+    source: 'rack' | 'backroom' | 'fitting_return';
+    state: 'EMPTY' | 'PREPARED' | 'CUSTOMER_HOLD' | 'FITTING' | 'CART_RESERVED' | 'RETURN_REQUIRED';
+    targetCustomerId?: string;
+    placedAt: number;
+  }>;
+  activeWorkstationContext: string;
+
   // Visual Effects
   floatingNumbers: FloatingNumber[];
 }

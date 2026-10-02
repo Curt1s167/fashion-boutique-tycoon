@@ -33,6 +33,7 @@ import {
 } from '../utils/saveManager';
 
 export type ActiveTabType = 
+  | 'workstation'
   | 'shop' 
   | 'inventory' 
   | 'procurement' 
@@ -78,6 +79,16 @@ interface GameContextType {
   fulfillFittingSizeRequest: (customerId: string, newSize: string) => void;
   setGameSpeed: (speed: number) => void;
   openStoreFromPreparation: () => void;
+  // Interactive Workstation & Preparation Table (ANTIGRAVITY_INTERACTIVE_WORKSTATION_UI_SPEC)
+  placeItemOnPrepTable: (styleId: string, variantId: string, source: 'rack' | 'backroom') => void;
+  removeItemFromPrepTable: (itemId: string, returnTarget: 'rack' | 'backroom') => void;
+  clearPrepTable: () => void;
+  handPrepTableToCustomer: (customerId: string) => void;
+  processPOSPayment: (customerId: string, paymentMethod: 'cash' | 'card' | 'qr', tipBonus?: number) => void;
+  receiveGoodsPackage: (poId: string, damagedCount?: number) => void;
+  inspectAndResolveReturn: (returnId: string, condition: 'sellable' | 'repack' | 'damaged', resolution: 'refund' | 'exchange', exchangeSize?: string) => void;
+  cleanIncidentArea: (targetArea: 'fitting' | 'floor') => void;
+  setActiveWorkstationContext: (contextType: string) => void;
   // Returns & Online Orders
   resolveReturn: (returnId: string, approve: boolean) => void;
   speedUpOnlineOrder: (orderId: string) => void;
@@ -244,6 +255,8 @@ const INITIAL_GAME_STATE: GameState = {
   },
 
   advisorInsights: INITIAL_ADVISOR_INSIGHTS,
+  prepTableItems: [],
+  activeWorkstationContext: 'CUSTOMER_ITEM_FULFILLMENT',
   floatingNumbers: []
 };
 
@@ -275,7 +288,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_GAME_STATE;
   });
 
-  const [activeTab, setActiveTab] = useState<ActiveTabType>('shop');
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('workstation');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
   const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
@@ -837,6 +850,359 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isDayRunning: true,
       gameSpeed: 1
     }));
+  }, []);
+
+  // 1. Place exact SKU onto Preparation Table (Accounting Invariant: NO REVENUE!)
+  const placeItemOnPrepTable = useCallback((styleId: string, variantId: string, source: 'rack' | 'backroom') => {
+    setState(prev => {
+      if (prev.prepTableItems.length >= 6) {
+        sound.playAngry();
+        addFloatingNumber('⚠️ Bàn chuẩn bị đã đầy 6 món!', 'sad');
+        return prev;
+      }
+      const style = prev.styles[styleId];
+      if (!style) return prev;
+      const variant = style.variants.find(v => v.id === variantId);
+      if (!variant) return prev;
+
+      if (source === 'rack' && variant.floorStock <= 0) {
+        sound.playAngry();
+        addFloatingNumber('❌ Kệ đã hết size này! Lấy từ kho sau.', 'sad');
+        return prev;
+      }
+      if (source === 'backroom' && variant.backroomStock <= 0) {
+        sound.playAngry();
+        addFloatingNumber('❌ Kho sau đã hết size này! Đặt sỉ thêm.', 'sad');
+        return prev;
+      }
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === variantId) {
+          return {
+            ...v,
+            floorStock: source === 'rack' ? v.floorStock - 1 : v.floorStock,
+            backroomStock: source === 'backroom' ? v.backroomStock - 1 : v.backroomStock
+          };
+        }
+        return v;
+      });
+
+      const newItem = {
+        id: 'prep-' + Date.now() + '-' + Math.random(),
+        styleId: style.id,
+        styleName: style.name,
+        variantId: variant.id,
+        size: variant.size,
+        colorName: variant.colorName,
+        colorHex: variant.colorHex,
+        emoji: style.emoji,
+        sellPrice: variant.sellPrice,
+        costPrice: variant.costPrice,
+        source,
+        state: 'PREPARED' as const,
+        placedAt: Date.now()
+      };
+
+      sound.playPop();
+      addFloatingNumber(`🪡 Đặt lên bàn: ${style.name} (${variant.size})`, 'order');
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [styleId]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        prepTableItems: [...prev.prepTableItems, newItem]
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 2. Remove item from Prep Table back to stock
+  const removeItemFromPrepTable = useCallback((itemId: string, returnTarget: 'rack' | 'backroom') => {
+    setState(prev => {
+      const item = prev.prepTableItems.find(i => i.id === itemId);
+      if (!item) return prev;
+      const style = prev.styles[item.styleId];
+      if (!style) return prev;
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === item.variantId) {
+          return {
+            ...v,
+            floorStock: returnTarget === 'rack' ? v.floorStock + 1 : v.floorStock,
+            backroomStock: returnTarget === 'backroom' ? v.backroomStock + 1 : v.backroomStock
+          };
+        }
+        return v;
+      });
+
+      sound.playPop();
+      addFloatingNumber(`Trả về ${returnTarget === 'rack' ? 'kệ' : 'kho'}: ${item.styleName}`, 'clean');
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        prepTableItems: prev.prepTableItems.filter(i => i.id !== itemId)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 3. Clear all items from prep table
+  const clearPrepTable = useCallback(() => {
+    setState(prev => {
+      if (prev.prepTableItems.length === 0) return prev;
+      const updatedStyles = { ...prev.styles };
+      for (const item of prev.prepTableItems) {
+        const style = updatedStyles[item.styleId];
+        if (style) {
+          style.variants = style.variants.map(v => 
+            v.id === item.variantId ? { ...v, floorStock: v.floorStock + 1 } : v
+          );
+        }
+      }
+      sound.playPop();
+      addFloatingNumber('🧹 Đã cất toàn bộ đồ trên bàn về kệ!', 'clean');
+      return {
+        ...prev,
+        styles: updatedStyles,
+        prepTableItems: []
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 4. Hand prepared items to customer
+  const handPrepTableToCustomer = useCallback((customerId: string) => {
+    setState(prev => {
+      const custIdx = prev.customers.findIndex(c => c.id === customerId);
+      if (custIdx === -1) return prev;
+      const cust = prev.customers[custIdx];
+
+      const expectedSize = cust.requestedAlternativeSize || cust.requestedSize;
+      const matchedItemIdx = prev.prepTableItems.findIndex(
+        i => i.styleId === cust.targetStyleId && i.size === expectedSize
+      );
+
+      if (matchedItemIdx === -1) {
+        // Customer rejects! Wrong item or not yet prepared on table
+        sound.playAngry();
+        addFloatingNumber(`❌ Chưa có đúng ${cust.targetCategory} size ${expectedSize} trên bàn!`, 'sad');
+        const updatedCusts = [...prev.customers];
+        updatedCusts[custIdx] = {
+          ...cust,
+          patience: Math.max(0, cust.patience - 15)
+        };
+        return {
+          ...prev,
+          customers: updatedCusts
+        };
+      }
+
+      const matchedItem = prev.prepTableItems[matchedItemIdx];
+      sound.playPop();
+      addFloatingNumber(`✨ Khách nhận: ${matchedItem.styleName} (${matchedItem.size})`, 'clean');
+
+      const updatedCusts = [...prev.customers];
+      updatedCusts[custIdx] = {
+        ...cust,
+        state: 'fitting',
+        stateProgress: 20,
+        patience: Math.min(100, cust.patience + 40),
+        cartVariantId: matchedItem.variantId,
+        billAmount: matchedItem.sellPrice,
+        cartItems: [
+          ...(cust.cartItems || []),
+          {
+            id: 'cart-' + Date.now(),
+            styleId: matchedItem.styleId,
+            styleName: matchedItem.styleName,
+            variantId: matchedItem.variantId,
+            size: matchedItem.size,
+            colorName: matchedItem.colorName,
+            sellPrice: matchedItem.sellPrice,
+            emoji: matchedItem.emoji
+          }
+        ],
+        requestedAlternativeSize: undefined
+      };
+
+      const updatedPrep = prev.prepTableItems.filter((_, idx) => idx !== matchedItemIdx);
+      const updatedTasks = prev.storeTasks.map(t => 
+        t.targetCustomerId === customerId ? { ...t, status: 'completed' as const } : t
+      );
+
+      return {
+        ...prev,
+        prepTableItems: updatedPrep,
+        customers: updatedCusts,
+        storeTasks: updatedTasks
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 5. Context-aware POS checkout with payment method (Cash / Card / QR)
+  const processPOSPayment = useCallback((customerId: string, paymentMethod: 'cash' | 'card' | 'qr', tipBonus: number = 0) => {
+    setState(prev => {
+      const custIdx = prev.customers.findIndex(c => c.id === customerId);
+      if (custIdx === -1) return prev;
+      const cust = prev.customers[custIdx];
+      if (cust.state !== 'checkout') return prev;
+
+      const branchBonus = prev.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.revenueBonusPercent, 0) / 100;
+      const posLevelBonus = 0.05 * prev.upgrades.posCounter.level;
+      const tipMultiplier = 1 + posLevelBonus + branchBonus + tipBonus;
+      const finalBill = Math.round((cust.billAmount || 180000) * tipMultiplier);
+
+      sound.playCash();
+      const methodLabels = { cash: 'Tiền Mặt 💵', card: 'Thẻ Quẹt 💳', qr: 'Mã QR 📱' };
+      addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (${methodLabels[paymentMethod]})`, 'money');
+
+      // 5-star review chance
+      const newReviews = [...prev.reviews];
+      if (Math.random() < 0.40) {
+        newReviews.unshift({
+          id: 'rev-' + Date.now() + '-' + Math.random(),
+          customerName: cust.name,
+          customerAvatar: cust.avatar,
+          stars: 5,
+          category: 'service',
+          comment: `Quầy thu ngân thanh toán cực chuyên nghiệp qua ${methodLabels[paymentMethod]}! Đồ đẹp xuất sắc ⭐⭐⭐⭐⭐`,
+          timestamp: 'Vừa xong',
+          replied: false
+        });
+      }
+
+      const updatedCustomers = prev.customers.filter(c => c.id !== customerId);
+      const nextServed = prev.currentDayStats.customersServed + 1;
+      const totalVisitors = nextServed + prev.currentDayStats.customersLost;
+      const newConversionRate = Math.round((nextServed / Math.max(1, totalVisitors)) * 100);
+
+      return {
+        ...prev,
+        cash: prev.cash + finalBill,
+        totalEarned: prev.totalEarned + finalBill,
+        reputationExp: prev.reputationExp + 30,
+        customers: updatedCustomers,
+        reviews: newReviews.slice(0, 30),
+        currentDayStats: {
+          ...prev.currentDayStats,
+          revenue: prev.currentDayStats.revenue + finalBill,
+          profit: prev.currentDayStats.profit + finalBill,
+          customersServed: nextServed,
+          conversionRate: newConversionRate
+        }
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 6. Goods Receiving from Inbound Purchase Order
+  const receiveGoodsPackage = useCallback((poId: string, damagedCount: number = 0) => {
+    setState(prev => {
+      const poIdx = prev.purchaseOrders.findIndex(p => p.id === poId);
+      if (poIdx === -1) return prev;
+      const po = prev.purchaseOrders[poIdx];
+
+      const style = prev.styles[po.styleId];
+      if (!style) return prev;
+
+      const receivedGoodQty = Math.max(0, po.quantity - damagedCount);
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === po.variantId) {
+          return {
+            ...v,
+            backroomStock: v.backroomStock + receivedGoodQty
+          };
+        }
+        return v;
+      });
+
+      sound.playPop();
+      if (damagedCount > 0) {
+        addFloatingNumber(`📦 Nhận +${receivedGoodQty} vào kho (-${damagedCount} lỗi)`, 'sad');
+      } else {
+        addFloatingNumber(`📦 Nhập kho thành công +${receivedGoodQty} chiếc!`, 'clean');
+      }
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        purchaseOrders: prev.purchaseOrders.filter(p => p.id !== poId)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 7. Inspect & Resolve Return/Exchange
+  const inspectAndResolveReturn = useCallback((
+    returnId: string, 
+    condition: 'sellable' | 'repack' | 'damaged', 
+    resolution: 'refund' | 'exchange', 
+    exchangeSize?: string
+  ) => {
+    setState(prev => {
+      const reqIdx = prev.returnRequests.findIndex(r => r.id === returnId);
+      if (reqIdx === -1) return prev;
+      const req = prev.returnRequests[reqIdx];
+
+      if (resolution === 'refund') {
+        const refundAmt = condition === 'damaged' ? Math.round(req.refundAmount * 0.7) : req.refundAmount;
+        sound.playCash();
+        addFloatingNumber(`-${refundAmt.toLocaleString('vi-VN')}đ (Hoàn tiền)`, 'sad');
+        return {
+          ...prev,
+          cash: Math.max(0, prev.cash - refundAmt),
+          returnRequests: prev.returnRequests.filter(r => r.id !== returnId),
+          currentDayStats: {
+            ...prev.currentDayStats,
+            returnsProcessed: prev.currentDayStats.returnsProcessed + 1
+          }
+        };
+      } else {
+        // Exchange
+        sound.playPop();
+        addFloatingNumber(`🔄 Đổi sang size ${exchangeSize || 'chuẩn'}!`, 'clean');
+        return {
+          ...prev,
+          returnRequests: prev.returnRequests.filter(r => r.id !== returnId),
+          currentDayStats: {
+            ...prev.currentDayStats,
+            returnsProcessed: prev.currentDayStats.returnsProcessed + 1
+          }
+        };
+      }
+    });
+  }, [addFloatingNumber]);
+
+  // 8. Clean Incident Area
+  const cleanIncidentArea = useCallback((targetArea: 'fitting' | 'floor') => {
+    setState(prev => {
+      sound.playPop();
+      addFloatingNumber(`✨ Đã làm sạch ${targetArea === 'fitting' ? 'phòng thử' : 'sàn tiệm'}!`, 'clean');
+      return {
+        ...prev,
+        cleanliness: Math.min(100, prev.cleanliness + 30),
+        storeTasks: prev.storeTasks.filter(t => t.type !== 'CLEANING_NEEDED')
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // 9. Set active workstation context
+  const setActiveWorkstationContext = useCallback((contextType: string) => {
+    setState(prev => ({ ...prev, activeWorkstationContext: contextType }));
   }, []);
 
   // Context-aware serve customer handler
@@ -1873,6 +2239,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fulfillFittingSizeRequest,
         setGameSpeed,
         openStoreFromPreparation,
+        placeItemOnPrepTable,
+        removeItemFromPrepTable,
+        clearPrepTable,
+        handPrepTableToCustomer,
+        processPOSPayment,
+        receiveGoodsPackage,
+        inspectAndResolveReturn,
+        cleanIncidentArea,
+        setActiveWorkstationContext,
         resolveReturn,
         speedUpOnlineOrder,
         hireEmployee,

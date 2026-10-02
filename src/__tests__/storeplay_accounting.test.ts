@@ -62,6 +62,8 @@ describe('ANTIGRAVITY Manual Storeplay & Accounting Invariants Test Suite', () =
       averageSatisfaction: 100
     },
     yesterdayStats: undefined,
+    prepTableItems: [],
+    activeWorkstationContext: 'CUSTOMER_ITEM_FULFILLMENT',
     floatingNumbers: []
   });
 

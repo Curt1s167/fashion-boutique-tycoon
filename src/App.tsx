@@ -9,11 +9,13 @@ import {
   Layers,
   Users,
   Star,
-  MapPin
+  MapPin,
+  Smartphone
 } from 'lucide-react';
 import { GameProvider, useGame } from './context/GameContext';
 import type { ActiveTabType } from './context/GameContext';
 import { Header } from './components/Header';
+import { InteractiveWorkstation } from './components/workstation/InteractiveWorkstation';
 import { ShopFloor } from './components/ShopFloor';
 import { InventoryWholesale } from './components/InventoryWholesale';
 import { ProcurementOrders } from './components/ProcurementOrders';
@@ -35,10 +37,16 @@ const GameMain: React.FC = () => {
 
   const tabs: { id: ActiveTabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number }[] = [
     { 
+      id: 'workstation', 
+      label: 'Bàn Làm Việc 9:16', 
+      icon: Smartphone, 
+      badge: state.customers.length > 0 ? `${state.customers.length} khách` : undefined 
+    },
+    { 
       id: 'shop', 
-      label: 'Sàn Bán Hàng', 
+      label: 'Mặt Bằng Shop', 
       icon: Store, 
-      badge: state.customers.length > 0 ? state.customers.length : undefined 
+      badge: undefined 
     },
     { 
       id: 'inventory', 
@@ -145,6 +153,19 @@ const GameMain: React.FC = () => {
         {/* Tab Content Display */}
         <div className="flex-1">
           <AnimatePresence mode="wait">
+            {activeTab === 'workstation' && (
+              <motion.div
+                key="workstation"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full flex justify-center"
+              >
+                <InteractiveWorkstation />
+              </motion.div>
+            )}
+
             {activeTab === 'shop' && (
               <motion.div
                 key="shop"
