@@ -1,14 +1,26 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Star, Volume2, VolumeX, Coins, Clock, Store, RotateCcw } from 'lucide-react';
-import { useGame } from '../context/GameContext';
+import { useGame, DAY_DURATION } from '../context/GameContext';
 
 export const Header: React.FC = () => {
   const { state, toggleSound, isSoundEnabled, resetGame, setIsAdvisorOpen, setIsSaveModalOpen } = useGame();
 
   const expPercentage = Math.min(100, (state.reputationExp / state.reputationNextExp) * 100);
-  const dayPercentage = Math.min(100, (state.dayTime / 60) * 100);
+  const dayPercentage = Math.min(100, (state.dayTime / DAY_DURATION) * 100);
   const activeBranch = state.branches.find(b => b.isUnlocked) || state.branches[0];
+
+  // Remaining time formatted as MM:SS
+  const remainingSec = Math.max(0, DAY_DURATION - state.dayTime);
+  const minutes = Math.floor(remainingSec / 60);
+  const seconds = remainingSec % 60;
+  const timeFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+  // Virtual retail business clock: 08:00 AM to 22:00 PM (14 hours = 840 mins)
+  const virtualMinutes = 480 + Math.floor((state.dayTime / DAY_DURATION) * 840);
+  const vHour = Math.floor(virtualMinutes / 60);
+  const vMin = virtualMinutes % 60;
+  const virtualClock = `${vHour < 10 ? '0' : ''}${vHour}:${vMin < 10 ? '0' : ''}${vMin}`;
 
   const handleReset = () => {
     if (window.confirm('Bạn có chắc chắn muốn chơi lại từ đầu không?')) {
@@ -64,13 +76,13 @@ export const Header: React.FC = () => {
 
         {/* Center: Day Progress & Reputation */}
         <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-center">
-          {/* Day Timer */}
-          <div className="bg-pink-50/80 px-3 py-1.5 rounded-2xl border border-pink-200 min-w-[130px]">
+          {/* Day Timer with Real Shop Clock */}
+          <div className="bg-pink-50/80 px-3 py-1.5 rounded-2xl border border-pink-200 min-w-[145px]">
             <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
-              <span className="flex items-center gap-1 text-pink-600">
-                <Clock className="w-3.5 h-3.5" /> Ca ngày
+              <span className="flex items-center gap-1 text-pink-600" title={`Giờ mở cửa: ${virtualClock}`}>
+                <Clock className="w-3.5 h-3.5" /> {virtualClock}
               </span>
-              <span>{60 - state.dayTime}s</span>
+              <span className="font-mono text-purple-700">{timeFormatted}</span>
             </div>
             <div className="w-full bg-pink-200 rounded-full h-2 overflow-hidden">
               <motion.div 

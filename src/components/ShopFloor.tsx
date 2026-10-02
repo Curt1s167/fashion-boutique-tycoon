@@ -19,6 +19,8 @@ export const ShopFloor: React.FC = () => {
   const { 
     state, 
     serveCustomer, 
+    fetchItemForCustomer,
+    checkoutCustomerManual,
     rushFitting, 
     rushCheckout, 
     replenishAllStyleToFloor, 
@@ -421,38 +423,41 @@ export const ShopFloor: React.FC = () => {
               <span className="text-xs mt-1">Chưa có khách chờ tính tiền</span>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
               {checkoutCustomers.map((cust) => (
-                <motion.div
+                <div
                   key={cust.id}
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => serveCustomer(cust.id)}
-                  className="p-2.5 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between gap-2 cursor-pointer shadow-sm"
+                  className="p-3 bg-emerald-50/90 rounded-2xl border-2 border-emerald-300 flex flex-wrap items-center justify-between gap-2 shadow-xs transition-all"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{cust.avatar}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-3xl animate-bounceShort">{cust.avatar}</span>
                     <div>
                       <div className="text-xs font-heading font-bold text-slate-800">
                         {cust.name}
                       </div>
-                      <div className="text-[10px] text-emerald-700 font-semibold">
-                        Hóa đơn: {cust.billAmount?.toLocaleString('vi-VN')}đ
+                      <div className="text-xs text-emerald-700 font-extrabold flex items-center gap-1">
+                        Hóa đơn: <span>{cust.billAmount?.toLocaleString('vi-VN')}đ</span>
                       </div>
+                      {cust.stateProgress > 0 && (
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Thu ngân quét: {cust.stateProgress}%
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="w-24">
-                    <div className="w-full bg-emerald-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                        style={{ width: `${cust.stateProgress}%` }}
-                      />
-                    </div>
-                    <span className="text-[9px] text-right block text-emerald-600 font-bold mt-0.5">
-                      {cust.stateProgress}%
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => checkoutCustomerManual(cust.id)}
+                      className="btn-3d px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-heading font-bold text-xs shadow-game-btn-green flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Quẹt mã & Thu tiền 💳</span>
+                    </motion.button>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
           )}
@@ -464,10 +469,10 @@ export const ShopFloor: React.FC = () => {
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm md:text-base font-heading font-bold text-slate-800 flex items-center gap-2 m-0">
             <HeartHandshake className="w-4 h-4 text-pink-500" />
-            Khách Đang Xem Hàng ({browsingCustomers.length})
+            Khách Đang Chờ Lấy Đồ ({browsingCustomers.length})
           </h3>
           <span className="text-xs text-slate-400">
-            Bấm vào khách để Stylist tư vấn phục vụ!
+            Người chơi trực tiếp lấy hàng đưa cho khách thử đồ!
           </span>
         </div>
 
@@ -480,71 +485,115 @@ export const ShopFloor: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {browsingCustomers.map((cust) => {
               const targetStyle = state.styles[cust.targetStyleId];
-              const targetVar = targetStyle?.variants.find(v => v.id === cust.cartVariantId);
-              const isFloorOutOfStock = targetVar ? targetVar.floorStock === 0 : false;
-              const hasBackroomStock = targetVar ? targetVar.backroomStock > 0 : false;
+              const targetVar = targetStyle?.variants.find(v => v.id === cust.cartVariantId) || 
+                                targetStyle?.variants.find(v => v.size === cust.requestedSize) ||
+                                targetStyle?.variants[0];
+
+              const floorStock = targetVar ? targetVar.floorStock : 0;
+              const backroomStock = targetVar ? targetVar.backroomStock : 0;
+              const hasAnyStock = floorStock > 0 || backroomStock > 0;
 
               return (
-                <motion.div
+                <div
                   key={cust.id}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => serveCustomer(cust.id)}
-                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all ${
-                    isFloorOutOfStock
-                      ? 'bg-rose-50 border-rose-300 shadow-sm'
+                  className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                    !hasAnyStock
+                      ? 'bg-rose-50/70 border-rose-300 shadow-sm'
+                      : floorStock === 0 && backroomStock > 0
+                      ? 'bg-purple-50/50 border-purple-200 shadow-sm'
                       : 'bg-white border-pink-200 hover:border-pink-300 shadow-sm'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl">{cust.avatar}</span>
-                      <div>
-                        <div className="text-xs font-heading font-bold text-slate-800">
-                          {cust.name}
+                  <div>
+                    {/* Customer Header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{cust.avatar}</span>
+                        <div>
+                          <div className="text-xs font-heading font-bold text-slate-800">
+                            {cust.name}
+                          </div>
+                          <div className="text-[10px] text-pink-600 font-semibold flex items-center gap-1">
+                            {cust.archetype}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-pink-600 font-semibold flex items-center gap-1">
-                          {cust.archetype}
-                        </div>
+                      </div>
+                    </div>
+
+                    {/* Wanted item & variant */}
+                    <div className="bg-slate-50 p-2 rounded-xl mb-2 text-[11px] text-slate-700">
+                      <div className="font-bold text-slate-800 line-clamp-1">
+                        {targetStyle?.emoji} {targetStyle?.name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        Màu: <span className="font-semibold text-slate-700">{cust.preferredColor}</span> • Size: <span className="font-bold text-pink-600">{cust.requestedSize}</span>
+                      </div>
+                    </div>
+
+                    {/* Stock status pill */}
+                    <div className="mb-2.5 flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-slate-500">Tồn kho size này:</span>
+                      {floorStock > 0 ? (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold">
+                          Kệ có {floorStock} cái
+                        </span>
+                      ) : backroomStock > 0 ? (
+                        <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-bold">
+                          📦 Kho còn {backroomStock} cái
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md font-bold animate-pulse">
+                          ❌ Hết sạch cả kho & kệ!
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Patience Bar */}
+                    <div className="space-y-1 mb-3">
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-500">
+                        <span>Độ kiên nhẫn</span>
+                        <span className={cust.patience < 30 ? 'text-rose-500 font-bold' : ''}>
+                          {cust.patience}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            cust.patience > 60 
+                              ? 'bg-emerald-500' 
+                              : cust.patience > 30 
+                              ? 'bg-amber-500' 
+                              : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${cust.patience}%` }}
+                        />
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-[11px] text-slate-600 mb-2">
-                    Tìm: <span className="font-bold text-slate-800">{targetStyle?.name}</span> ({cust.preferredColor} - Size {cust.requestedSize})
+                  {/* Manual Action Button */}
+                  <div>
+                    {hasAnyStock ? (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => fetchItemForCustomer(cust.id)}
+                        className="btn-3d w-full py-2 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-bold text-xs shadow-game-btn flex items-center justify-center gap-1.5"
+                      >
+                        <ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Lấy hàng & Đưa khách 🛍️</span>
+                      </motion.button>
+                    ) : (
+                      <button
+                        onClick={() => setActiveTab('procurement')}
+                        className="w-full py-2 px-3 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-heading font-bold text-xs flex items-center justify-center gap-1 border border-rose-300 transition-colors"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Hết hàng - Đặt sỉ xưởng ngay →</span>
+                      </button>
+                    )}
                   </div>
-
-                  {/* Patience Bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                      <span>Độ kiên nhẫn</span>
-                      <span className={cust.patience < 30 ? 'text-rose-500 font-bold' : ''}>
-                        {cust.patience}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          cust.patience > 60 
-                            ? 'bg-emerald-500' 
-                            : cust.patience > 30 
-                            ? 'bg-amber-500' 
-                            : 'bg-rose-500'
-                        }`}
-                        style={{ width: `${cust.patience}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {isFloorOutOfStock && (
-                    <div className="mt-2 text-[10px] font-bold flex items-center justify-between bg-rose-100 text-rose-700 px-2 py-1 rounded-xl">
-                      <span>{hasBackroomStock ? 'Kho còn size này!' : 'Đã hết hàng!'}</span>
-                      {hasBackroomStock && (
-                        <span className="underline">Lấy ngay</span>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
+                </div>
               );
             })}
           </div>

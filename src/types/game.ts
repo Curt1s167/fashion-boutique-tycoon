@@ -256,7 +256,7 @@ export interface GameState {
   reputationExp: number;
   reputationNextExp: number;
   day: number;
-  dayTime: number; // 0 to 60s
+  dayTime: number; // 0 to 180s (DAY_DURATION)
   isDayRunning: boolean;
 
   // Cleanliness of Store Floor & Fitting Rooms (0 - 100%)
