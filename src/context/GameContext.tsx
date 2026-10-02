@@ -2,100 +2,77 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import confetti from 'canvas-confetti';
 import type { 
   GameState, 
-  ItemCategory, 
-  Customer 
+  Customer, 
+  PurchaseOrder, 
+  ReturnExchange, 
+  OnlineOrder 
 } from '../types/game';
+import { 
+  INITIAL_STYLES, 
+  INITIAL_SUPPLIERS, 
+  INITIAL_LOOKBOOK, 
+  INITIAL_BRANCHES, 
+  INITIAL_SOCIAL_POSTS 
+} from '../data/fashionCatalog';
 import { sound } from '../utils/sound';
+import { saveGameState, loadGameState, clearGameState } from '../utils/saveManager';
+
+export type ActiveTabType = 'shop' | 'inventory' | 'procurement' | 'orders' | 'lookbook' | 'upgrades' | 'branches';
 
 interface GameContextType {
   state: GameState;
-  activeTab: 'shop' | 'inventory' | 'upgrades' | 'stats';
-  setActiveTab: (tab: 'shop' | 'inventory' | 'upgrades' | 'stats') => void;
-  restockItem: (category: ItemCategory, amount: number) => void;
-  upgradeShop: (upgradeKey: keyof GameState['upgrades']) => void;
+  activeTab: ActiveTabType;
+  setActiveTab: (tab: ActiveTabType) => void;
+  // Inventory & Logistics
+  replenishVariantToFloor: (styleId: string, variantId: string, amount: number) => void;
+  replenishAllStyleToFloor: (styleId: string) => void;
+  createPurchaseOrder: (styleId: string, variantId: string, quantity: number) => void;
+  // Customer floor service
   serveCustomer: (customerId: string) => void;
-  rushCheckout: () => void;
   rushFitting: () => void;
+  rushCheckout: () => void;
+  // Returns & Online Orders
+  resolveReturn: (returnId: string, approve: boolean) => void;
+  speedUpOnlineOrder: (orderId: string) => void;
+  // Upgrades & Branches
+  upgradeShop: (upgradeKey: keyof GameState['upgrades']) => void;
+  unlockBranch: (branchId: string) => void;
+  claimLookbookOutfit: (lookbookId: string) => void;
+  // Day Cycle & Utilities
   startNextDay: () => void;
   toggleSound: () => void;
   isSoundEnabled: boolean;
   isDaySummaryOpen: boolean;
   closeDaySummary: () => void;
-  addFloatingNumber: (text: string, type: 'money' | 'rep' | 'heart' | 'sad', x?: number, y?: number) => void;
+  resetGame: () => void;
+  addFloatingNumber: (text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order', x?: number, y?: number) => void;
 }
 
-const INITIAL_STATE: GameState = {
-  cash: 650000,
-  totalEarned: 650000,
+const INITIAL_GAME_STATE: GameState = {
+  cash: 750000,
+  totalEarned: 750000,
   reputationStars: 1,
   reputationExp: 0,
   reputationNextExp: 100,
   day: 1,
-  dayTime: 0, // 0 to 60s
+  dayTime: 0,
   isDayRunning: true,
 
-  inventory: {
-    tshirt: {
-      id: 'tshirt-1',
-      name: 'Áo Thun Pastel Baby Tee',
-      category: 'tshirt',
-      emoji: '👕',
-      costPrice: 50000,
-      sellPrice: 150000,
-      stock: 15,
-      shelfCapacity: 25,
-      level: 1,
-      color: 'bg-pink-100 border-pink-300 text-pink-700',
-      description: 'Chất cotton 100% thoáng mát, form baby tee hot trend Gen Z.'
-    },
-    jeans: {
-      id: 'jeans-1',
-      name: 'Quần Baggy Jeans Y2K',
-      category: 'jeans',
-      emoji: '👖',
-      costPrice: 120000,
-      sellPrice: 320000,
-      stock: 10,
-      shelfCapacity: 20,
-      level: 1,
-      color: 'bg-indigo-100 border-indigo-300 text-indigo-700',
-      description: 'Jeans ống rộng phong cách Y2K tôn dáng, wash màu vintage.'
-    },
-    sneaker: {
-      id: 'sneaker-1',
-      name: 'Sneaker Chunky Trắng',
-      category: 'sneaker',
-      emoji: '👟',
-      costPrice: 220000,
-      sellPrice: 550000,
-      stock: 6,
-      shelfCapacity: 15,
-      level: 1,
-      color: 'bg-emerald-100 border-emerald-300 text-emerald-700',
-      description: 'Đế bánh mì hack dáng 5cm, siêu êm và cực dễ phối đồ.'
-    },
-    handbag: {
-      id: 'handbag-1',
-      name: 'Túi Kẹp Nách Da Mềm',
-      category: 'handbag',
-      emoji: '👜',
-      costPrice: 160000,
-      sellPrice: 420000,
-      stock: 8,
-      shelfCapacity: 18,
-      level: 1,
-      color: 'bg-amber-100 border-amber-300 text-amber-700',
-      description: 'Da PU cao cấp khóa kim loại vàng gold sang trọng.'
-    }
-  },
-
+  styles: INITIAL_STYLES,
+  suppliers: INITIAL_SUPPLIERS,
+  purchaseOrders: [],
   customers: [],
+  returnRequests: [],
+  onlineOrders: [],
+  lookbookOutfits: INITIAL_LOOKBOOK,
+  socialPosts: INITIAL_SOCIAL_POSTS,
+  branches: INITIAL_BRANCHES,
 
   upgrades: {
     fittingRooms: {
       id: 'fittingRooms',
       name: 'Phòng Thử Đồ Gương Led',
-      description: 'Thêm buồng thử đồ và đèn selfie lung linh, thử đồ nhanh gấp đôi.',
+      description: 'Gương selfie lung linh, tăng buồng thử và giảm thời gian thử đồ.',
       level: 1,
       maxLevel: 5,
       baseCost: 350000,
@@ -105,47 +82,69 @@ const INITIAL_STATE: GameState = {
     },
     posCounter: {
       id: 'posCounter',
-      name: 'Quầy POS Chạm Quét Tự Động',
-      description: 'Máy thanh toán quẹt mã QR cực nhạy, khách boa thêm tiền tip.',
+      name: 'Quầy POS Quét Mã Tự Động',
+      description: 'Máy quẹt mã QR và in hóa đơn siêu tốc, khách tip thêm tiền boa.',
       level: 1,
       maxLevel: 5,
       baseCost: 280000,
       costMultiplier: 1.7,
       icon: '💳',
-      effect: 'Thanh toán nhanh +35%, Khách tip +10%'
+      effect: 'Thanh toán nhanh +35%, Khách tip +12%'
     },
     shopSpace: {
       id: 'shopSpace',
-      name: 'Mở Rộng Không Gian Tiệm',
-      description: 'Mở rộng diện tích, chứa được nhiều khách ghé tiệm cùng lúc hơn.',
+      name: 'Mở Rộng Diện Tích Sàn Bán Hàng',
+      description: 'Mở rộng mặt bằng đón nhiều khách ghé mua sắm cùng lúc.',
       level: 1,
       maxLevel: 5,
       baseCost: 500000,
-      costMultiplier: 2.2,
+      costMultiplier: 2.1,
       icon: '🏬',
       effect: 'Sức chứa tối đa +2 khách'
     },
     marketing: {
       id: 'marketing',
-      name: 'Chiến Dịch Viral TikTok',
-      description: 'Hợp tác Fashion Influencer, kéo nhiều khách VIP chịu chi đến mua sắm.',
+      name: 'Chiến Dịch Lookbook & Viral TikTok',
+      description: 'Booking KOC/Influencer diện đồ shop, kéo khách VIP chịu chi.',
       level: 0,
       maxLevel: 5,
       baseCost: 400000,
       costMultiplier: 2.0,
       icon: '📢',
-      effect: 'Tăng 40% tốc độ khách đến, 25% khách VIP'
+      effect: 'Tăng 35% lượt khách, +20% khách VIP mua combo'
     },
     staffAuto: {
       id: 'staffAuto',
-      name: 'Thuê Trợ Lý Stylist Chăm Sóc',
-      description: 'Nhân viên tự động tư vấn, hồi phục kiên nhẫn khi khách chờ lâu.',
+      name: 'Thuê Stylist Tư Vấn Chăm Sóc Khách',
+      description: 'Nhân viên tự động tư vấn hỗ trợ size khi khách chờ lâu.',
       level: 0,
       maxLevel: 3,
       baseCost: 600000,
       costMultiplier: 2.5,
       icon: '💁‍♀️',
-      effect: 'Tự động chăm sóc khách, giảm 50% nguy cơ khách giận bỏ đi'
+      effect: 'Tự động hồi phục kiên nhẫn khi khách sắp bỏ đi'
+    },
+    backroomStorage: {
+      id: 'backroomStorage',
+      name: 'Kệ Kho Trung Chuyển Phía Sau',
+      description: 'Mở rộng sức chứa kho sau giúp trữ nhiều hàng sỉ giá tốt.',
+      level: 1,
+      maxLevel: 5,
+      baseCost: 300000,
+      costMultiplier: 1.8,
+      icon: '📦',
+      effect: 'Tăng +25 sức chứa kho chứa hàng phía sau'
+    },
+    deliverySpeed: {
+      id: 'deliverySpeed',
+      name: 'Hợp Tác Đội Shipper Hỏa Tốc',
+      description: 'Đóng gói và giao đơn online thần tốc, tăng đơn hàng online.',
+      level: 0,
+      maxLevel: 4,
+      baseCost: 450000,
+      costMultiplier: 2.2,
+      icon: '🛵',
+      effect: 'Đơn online xử lý nhanh +50%, hoa hồng +20%'
     }
   },
 
@@ -154,7 +153,9 @@ const INITIAL_STATE: GameState = {
     cost: 0,
     profit: 0,
     customersServed: 0,
-    customersLost: 0
+    customersLost: 0,
+    onlineOrdersCompleted: 0,
+    returnsProcessed: 0
   },
 
   floatingNumbers: []
@@ -168,16 +169,37 @@ const CUSTOMER_NAMES = [
 
 const CUSTOMER_AVATARS = ['👱‍♀️', '👩‍🦰', '👧', '👩‍🦱', '👩', '🧕', '👱‍♂️', '🧑‍🦱', '🧔', '🧑'];
 
+const CUSTOMER_ARCHETYPES: Customer['archetype'][] = [
+  'Gen Z Y2K', 'Dân Công Sở', 'Tín Đồ Streetwear', 'Khách VIP Sang Trọng', 'Học Sinh Sinh Viên'
+];
+
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<GameState>(INITIAL_STATE);
-  const [activeTab, setActiveTab] = useState<'shop' | 'inventory' | 'upgrades' | 'stats'>('shop');
+  const [state, setState] = useState<GameState>(() => {
+    const saved = loadGameState();
+    if (saved && saved.styles) {
+      return {
+        ...INITIAL_GAME_STATE,
+        ...saved,
+        isDayRunning: true,
+        floatingNumbers: []
+      };
+    }
+    return INITIAL_GAME_STATE;
+  });
+
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('shop');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
-  
+
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  // Auto-save on state change
+  useEffect(() => {
+    saveGameState(state);
+  }, [state]);
 
   const toggleSound = () => {
     sound.enabled = !sound.enabled;
@@ -185,8 +207,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (sound.enabled) sound.playPop();
   };
 
-  // Add floating number effect
-  const addFloatingNumber = useCallback((text: string, type: 'money' | 'rep' | 'heart' | 'sad', x = 50, y = 50) => {
+  const addFloatingNumber = useCallback((text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order', x = 50, y = 50) => {
     const newId = 'float-' + Date.now() + '-' + Math.random();
     setState(prev => ({
       ...prev,
@@ -201,33 +222,221 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 1500);
   }, []);
 
-  // Restock inventory wholesale
-  const restockItem = useCallback((category: ItemCategory, amount: number) => {
+  // Move stock from backroom to sales floor rack for a specific SKU
+  const replenishVariantToFloor = useCallback((styleId: string, variantId: string, amount: number) => {
     setState(prev => {
-      const item = prev.inventory[category];
-      const spaceLeft = item.shelfCapacity - item.stock;
-      const actualAmount = Math.min(amount, spaceLeft);
-      if (actualAmount <= 0) return prev;
+      const style = prev.styles[styleId];
+      if (!style) return prev;
 
-      const totalCost = actualAmount * item.costPrice;
-      if (prev.cash < totalCost) return prev; // Not enough money
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === variantId) {
+          const moveAmount = Math.min(amount, v.backroomStock);
+          return {
+            ...v,
+            floorStock: v.floorStock + moveAmount,
+            backroomStock: v.backroomStock - moveAmount
+          };
+        }
+        return v;
+      });
 
       sound.playPop();
       return {
         ...prev,
+        styles: {
+          ...prev.styles,
+          [styleId]: {
+            ...style,
+            variants: updatedVariants
+          }
+        }
+      };
+    });
+  }, []);
+
+  // Replenish all variants of a style from backroom to floor
+  const replenishAllStyleToFloor = useCallback((styleId: string) => {
+    setState(prev => {
+      const style = prev.styles[styleId];
+      if (!style) return prev;
+
+      let moved = false;
+      const updatedVariants = style.variants.map(v => {
+        if (v.backroomStock > 0) {
+          moved = true;
+          return {
+            ...v,
+            floorStock: v.floorStock + v.backroomStock,
+            backroomStock: 0
+          };
+        }
+        return v;
+      });
+
+      if (moved) sound.playPop();
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [styleId]: {
+            ...style,
+            variants: updatedVariants
+          }
+        }
+      };
+    });
+  }, []);
+
+  // Order goods from supplier (Procurement PO)
+  const createPurchaseOrder = useCallback((styleId: string, variantId: string, quantity: number) => {
+    setState(prev => {
+      const style = prev.styles[styleId];
+      if (!style) return prev;
+      const variant = style.variants.find(v => v.id === variantId);
+      if (!variant) return prev;
+
+      const supplier = prev.suppliers[style.supplierId];
+      const totalCost = variant.costPrice * quantity;
+
+      if (prev.cash < totalCost) return prev; // Not enough money
+
+      sound.playPop();
+      const newOrder: PurchaseOrder = {
+        id: 'PO-' + Date.now(),
+        supplierId: supplier.id,
+        supplierName: supplier.name,
+        styleId: style.id,
+        styleName: style.name,
+        variantId: variant.id,
+        variantDesc: `${variant.colorName} - Size ${variant.size}`,
+        quantity,
+        totalCost,
+        secondsRemaining: supplier.leadTimeSeconds,
+        status: 'shipping'
+      };
+
+      return {
+        ...prev,
         cash: prev.cash - totalCost,
+        purchaseOrders: [newOrder, ...prev.purchaseOrders],
         currentDayStats: {
           ...prev.currentDayStats,
           cost: prev.currentDayStats.cost + totalCost,
           profit: prev.currentDayStats.profit - totalCost
-        },
-        inventory: {
-          ...prev.inventory,
-          [category]: {
-            ...item,
-            stock: item.stock + actualAmount
-          }
         }
+      };
+    });
+  }, []);
+
+  // Serve a customer manually (Stylist assistance)
+  const serveCustomer = useCallback((customerId: string) => {
+    setState(prev => {
+      const idx = prev.customers.findIndex(c => c.id === customerId);
+      if (idx === -1) return prev;
+      const cust = prev.customers[idx];
+      sound.playPop();
+
+      let nextState = cust.state;
+      let nextProgress = cust.stateProgress + 40;
+
+      if (cust.state === 'browsing') {
+        const style = prev.styles[cust.targetStyleId];
+        const variant = style?.variants.find(v => v.id === cust.cartVariantId || (v.floorStock > 0));
+        if (variant && variant.floorStock > 0) {
+          nextState = 'fitting';
+          nextProgress = 30;
+        }
+      } else if (cust.state === 'fitting' && nextProgress >= 100) {
+        nextState = 'checkout';
+        nextProgress = 40;
+      } else if (cust.state === 'checkout' && nextProgress >= 100) {
+        nextState = 'satisfied';
+      }
+
+      const updated = [...prev.customers];
+      updated[idx] = {
+        ...cust,
+        patience: Math.min(100, cust.patience + 30),
+        state: nextState,
+        stateProgress: Math.min(100, nextProgress)
+      };
+
+      return {
+        ...prev,
+        customers: updated
+      };
+    });
+  }, []);
+
+  // Rush fitting rooms
+  const rushFitting = useCallback(() => {
+    setState(prev => {
+      let boosted = false;
+      const updated = prev.customers.map(c => {
+        if (c.state === 'fitting') {
+          boosted = true;
+          return { ...c, stateProgress: Math.min(100, c.stateProgress + 40) };
+        }
+        return c;
+      });
+      if (boosted) sound.playPop();
+      return { ...prev, customers: updated };
+    });
+  }, []);
+
+  // Rush checkout
+  const rushCheckout = useCallback(() => {
+    setState(prev => {
+      let boosted = false;
+      const updated = prev.customers.map(c => {
+        if (c.state === 'checkout') {
+          boosted = true;
+          return { ...c, stateProgress: Math.min(100, c.stateProgress + 50) };
+        }
+        return c;
+      });
+      if (boosted) sound.playPop();
+      return { ...prev, customers: updated };
+    });
+  }, []);
+
+  // Resolve customer return request
+  const resolveReturn = useCallback((returnId: string, approve: boolean) => {
+    setState(prev => {
+      const ret = prev.returnRequests.find(r => r.id === returnId);
+      if (!ret) return prev;
+
+      if (approve) {
+        sound.playCash();
+        addFloatingNumber(`-${ret.refundAmount.toLocaleString('vi-VN')}đ`, 'sad');
+      } else {
+        sound.playAngry();
+      }
+
+      return {
+        ...prev,
+        cash: approve ? Math.max(0, prev.cash - ret.refundAmount) : prev.cash,
+        returnRequests: prev.returnRequests.filter(r => r.id !== returnId),
+        currentDayStats: {
+          ...prev.currentDayStats,
+          returnsProcessed: prev.currentDayStats.returnsProcessed + 1
+        }
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Speed up online order packaging
+  const speedUpOnlineOrder = useCallback((orderId: string) => {
+    setState(prev => {
+      sound.playPop();
+      return {
+        ...prev,
+        onlineOrders: prev.onlineOrders.map(o => {
+          if (o.id === orderId) {
+            return { ...o, progress: Math.min(100, o.progress + 40) };
+          }
+          return o;
+        })
       };
     });
   }, []);
@@ -262,76 +471,45 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Tap to serve / assist a specific customer (Stylist care)
-  const serveCustomer = useCallback((customerId: string) => {
+  // Unlock expansion branch
+  const unlockBranch = useCallback((branchId: string) => {
     setState(prev => {
-      const custIndex = prev.customers.findIndex(c => c.id === customerId);
-      if (custIndex === -1) return prev;
+      const branch = prev.branches.find(b => b.id === branchId);
+      if (!branch || branch.isUnlocked || prev.cash < branch.unlockCost) return prev;
 
-      const cust = prev.customers[custIndex];
-      sound.playPop();
-
-      // Give patience boost and advance state
-      let nextState = cust.state;
-      let nextProgress = cust.stateProgress + 40;
-
-      if (cust.state === 'browsing') {
-        const item = prev.inventory[cust.targetCategory];
-        if (item.stock > 0) {
-          nextState = 'fitting';
-          nextProgress = 20;
-        }
-      } else if (cust.state === 'fitting' && nextProgress >= 100) {
-        nextState = 'checkout';
-        nextProgress = 30;
-      } else if (cust.state === 'checkout' && nextProgress >= 100) {
-        nextState = 'satisfied';
-      }
-
-      const updatedCustomers = [...prev.customers];
-      updatedCustomers[custIndex] = {
-        ...cust,
-        patience: Math.min(100, cust.patience + 25),
-        state: nextState,
-        stateProgress: Math.min(100, nextProgress)
-      };
+      sound.playLevelUp();
+      confetti({
+        particleCount: 150,
+        spread: 90,
+        origin: { y: 0.5 }
+      });
 
       return {
         ...prev,
-        customers: updatedCustomers
+        cash: prev.cash - branch.unlockCost,
+        branches: prev.branches.map(b => b.id === branchId ? { ...b, isUnlocked: true } : b)
       };
     });
   }, []);
 
-  // Tap button to speed up all fitting customers
-  const rushFitting = useCallback(() => {
+  // Claim lookbook combo reward
+  const claimLookbookOutfit = useCallback((lookbookId: string) => {
     setState(prev => {
-      let boosted = false;
-      const updatedCustomers = prev.customers.map(c => {
-        if (c.state === 'fitting') {
-          boosted = true;
-          return { ...c, stateProgress: Math.min(100, c.stateProgress + 35) };
-        }
-        return c;
-      });
-      if (boosted) sound.playPop();
-      return { ...prev, customers: updatedCustomers };
-    });
-  }, []);
+      const outfit = prev.lookbookOutfits.find(o => o.id === lookbookId);
+      if (!outfit || outfit.isCompleted) return prev;
 
-  // Tap button to speed up checkout
-  const rushCheckout = useCallback(() => {
-    setState(prev => {
-      let boosted = false;
-      const updatedCustomers = prev.customers.map(c => {
-        if (c.state === 'checkout') {
-          boosted = true;
-          return { ...c, stateProgress: Math.min(100, c.stateProgress + 45) };
-        }
-        return c;
+      sound.playLevelUp();
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.4 }
       });
-      if (boosted) sound.playPop();
-      return { ...prev, customers: updatedCustomers };
+
+      return {
+        ...prev,
+        reputationExp: prev.reputationExp + outfit.expReward,
+        lookbookOutfits: prev.lookbookOutfits.map(o => o.id === lookbookId ? { ...o, isCompleted: true } : o)
+      };
     });
   }, []);
 
@@ -350,7 +528,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cost: 0,
         profit: 0,
         customersServed: 0,
-        customersLost: 0
+        customersLost: 0,
+        onlineOrdersCompleted: 0,
+        returnsProcessed: 0
       }
     }));
   }, []);
@@ -359,16 +539,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDaySummaryOpen(false);
   };
 
-  // MAIN 1-SECOND GAME LOOP
+  const resetGame = () => {
+    clearGameState();
+    setState(INITIAL_GAME_STATE);
+  };
+
+  // 1-SECOND GAME LOOP
   useEffect(() => {
     const timer = setInterval(() => {
       const current = stateRef.current;
       if (!current.isDayRunning) return;
 
-      // 1. Progress day timer (60s = 1 day)
+      // 1. Advance day timer (60s = 1 business day)
       const nextDayTime = current.dayTime + 1;
       if (nextDayTime >= 60) {
-        // End of the business day!
         sound.playLevelUp();
         confetti({
           particleCount: 120,
@@ -384,77 +568,181 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // 2. Customer Capacity and Spawning
-      const maxCustomersInShop = 3 + current.upgrades.shopSpace.level * 2;
-      const categories: ItemCategory[] = ['tshirt', 'jeans', 'sneaker', 'handbag'];
-      
-      let nextCustomers = [...current.customers];
-      let nextInventory = { ...current.inventory };
-      let cashEarnedThisTick = 0;
-      let expEarnedThisTick = 0;
-      let servedCountThisTick = 0;
-      let lostCountThisTick = 0;
+      // 2. Process Purchase Orders Inbound
+      let updatedStyles = { ...current.styles };
+      let remainingPOs: PurchaseOrder[] = [];
 
-      // Spawn rate based on stars & marketing
+      for (const po of current.purchaseOrders) {
+        if (po.secondsRemaining <= 1) {
+          // Delivered to backroom!
+          const style = updatedStyles[po.styleId];
+          if (style) {
+            const updatedVariants = style.variants.map(v => {
+              if (v.id === po.variantId) {
+                return {
+                  ...v,
+                  backroomStock: v.backroomStock + po.quantity
+                };
+              }
+              return v;
+            });
+            updatedStyles[po.styleId] = {
+              ...style,
+              variants: updatedVariants
+            };
+          }
+          sound.playPop();
+          addFloatingNumber(`📦 Đã nhận +${po.quantity} ${po.styleName}`, 'order');
+        } else {
+          remainingPOs.push({
+            ...po,
+            secondsRemaining: po.secondsRemaining - 1
+          });
+        }
+      }
+
+      // 3. Process Omnichannel Online Orders
+      let nextOnlineOrders: OnlineOrder[] = [];
+      let onlineOrderCashEarned = 0;
+      const deliverySpeedBonus = current.upgrades.deliverySpeed.level * 10;
+
+      for (const ord of current.onlineOrders) {
+        const nextProgress = ord.progress + 20 + deliverySpeedBonus;
+        if (nextProgress >= 100) {
+          onlineOrderCashEarned += ord.totalAmount;
+          sound.playCash();
+          addFloatingNumber(`+${ord.totalAmount.toLocaleString('vi-VN')}đ (Đơn Online)`, 'order');
+        } else {
+          nextOnlineOrders.push({
+            ...ord,
+            progress: nextProgress
+          });
+        }
+      }
+
+      // Randomly spawn new online order if delivery upgrade unlocked
+      if (current.upgrades.deliverySpeed.level > 0 && nextOnlineOrders.length < 3 && Math.random() < 0.25) {
+        const styleKeys = Object.keys(updatedStyles);
+        const randomStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
+        const randomVar = randomStyle.variants[Math.floor(Math.random() * randomStyle.variants.length)];
+        
+        if (randomVar && (randomVar.floorStock > 0 || randomVar.backroomStock > 0)) {
+          // Reserve 1 item
+          if (randomVar.floorStock > 0) randomVar.floorStock -= 1;
+          else randomVar.backroomStock -= 1;
+
+          nextOnlineOrders.push({
+            id: 'ORD-' + Date.now(),
+            customerName: CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
+            customerAvatar: CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)],
+            styleName: randomStyle.name,
+            variantDesc: `${randomVar.colorName} (${randomVar.size})`,
+            totalAmount: randomVar.sellPrice,
+            status: 'shipping',
+            progress: 10
+          });
+        }
+      }
+
+      // 4. Random return / exchange request
+      let nextReturns = [...current.returnRequests];
+      if (nextReturns.length < 2 && Math.random() < 0.08) {
+        const styleKeys = Object.keys(updatedStyles);
+        const randomStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
+        const reasons: ReturnExchange['reason'][] = ['wrong_size', 'color_mismatch', 'style_change'];
+        const chosenReason = reasons[Math.floor(Math.random() * reasons.length)];
+        const reasonLabels = {
+          wrong_size: 'Mặc bị chật size, muốn đổi size lớn hơn',
+          color_mismatch: 'Màu thực tế không hợp da, xin hoàn tiền',
+          style_change: 'Đổi ý sang phong cách khác'
+        };
+
+        nextReturns.push({
+          id: 'RET-' + Date.now(),
+          customerName: CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
+          customerAvatar: CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)],
+          styleName: randomStyle.name,
+          variantDesc: `Hàng mới mua hôm qua`,
+          reason: chosenReason,
+          reasonText: reasonLabels[chosenReason],
+          refundAmount: randomStyle.basePrice,
+          state: 'pending'
+        });
+      }
+
+      // 5. Customer Traffic Spawning
+      const maxCustomersInShop = 3 + current.upgrades.shopSpace.level * 2;
+      let nextCustomers = [...current.customers];
+
       const spawnChance = 0.45 + (current.reputationStars * 0.08) + (current.upgrades.marketing.level * 0.1);
       if (nextCustomers.length < maxCustomersInShop && Math.random() < spawnChance) {
-        const chosenCat = categories[Math.floor(Math.random() * categories.length)];
-        const isVip = Math.random() < (0.15 + current.upgrades.marketing.level * 0.1);
-        const name = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
-        const avatar = CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)];
-        
-        const newCustomer: Customer = {
+        const styleKeys = Object.keys(updatedStyles);
+        const chosenStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
+        const chosenVar = chosenStyle.variants[Math.floor(Math.random() * chosenStyle.variants.length)];
+        const archetype = CUSTOMER_ARCHETYPES[Math.floor(Math.random() * CUSTOMER_ARCHETYPES.length)];
+        const isVip = archetype === 'Khách VIP Sang Trọng';
+
+        const newCust: Customer = {
           id: 'cust-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-          name: isVip ? `⭐ VIP ${name}` : name,
-          avatar,
-          targetCategory: chosenCat,
-          budget: isVip ? 800000 : 400000,
+          name: isVip ? `⭐ VIP ${CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)]}` : CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
+          avatar: CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)],
+          archetype,
+          targetStyleId: chosenStyle.id,
+          targetCategory: chosenStyle.category,
+          requestedSize: chosenVar.size,
+          preferredColor: chosenVar.colorName,
+          budget: isVip ? chosenVar.sellPrice * 2.5 : chosenVar.sellPrice * 1.5,
           patience: 100,
           maxPatience: 100,
           state: 'entering',
-          stateProgress: 0
+          stateProgress: 0,
+          cartVariantId: chosenVar.id,
+          billAmount: chosenVar.sellPrice
         };
-        nextCustomers.push(newCustomer);
+        nextCustomers.push(newCust);
         sound.playBell();
       }
 
-      // 3. Process existing customers
-      const fittingSpeed = 15 + current.upgrades.fittingRooms.level * 8;
-      const checkoutSpeed = 20 + current.upgrades.posCounter.level * 10;
+      // 6. Process Customer Micro-loop
+      const fittingSpeed = 16 + current.upgrades.fittingRooms.level * 9;
+      const checkoutSpeed = 22 + current.upgrades.posCounter.level * 11;
       const staffAutoSkill = current.upgrades.staffAuto.level;
+
+      let floorSalesCash = 0;
+      let expEarned = 0;
+      let servedCount = 0;
+      let lostCount = 0;
 
       nextCustomers = nextCustomers.map(cust => {
         let updated = { ...cust };
 
-        // Auto stylist support
+        // Staff auto patience assist
         if (staffAutoSkill > 0 && updated.patience < 40) {
-          updated.patience = Math.min(100, updated.patience + staffAutoSkill * 5);
+          updated.patience = Math.min(100, updated.patience + staffAutoSkill * 6);
         }
 
         switch (updated.state) {
           case 'entering':
-            // Moves to browsing
             updated.state = 'browsing';
             break;
 
           case 'browsing': {
-            const item = nextInventory[updated.targetCategory];
-            if (item.stock > 0) {
-              // Customer takes item
-              nextInventory = {
-                ...nextInventory,
-                [updated.targetCategory]: {
-                  ...item,
-                  stock: item.stock - 1
-                }
-              };
-              updated.state = 'fitting';
-              updated.stateProgress = 10;
-              updated.cartItemId = item.id;
-              updated.billAmount = item.sellPrice;
-            } else {
-              // Out of stock - customer gets impatient fast!
-              updated.patience -= 18;
+            const style = updatedStyles[updated.targetStyleId];
+            if (style) {
+              const matchedVar = style.variants.find(v => v.id === updated.cartVariantId);
+              if (matchedVar && matchedVar.floorStock > 0) {
+                // Exact SKU found on floor!
+                matchedVar.floorStock -= 1;
+                matchedVar.salesCount += 1;
+                updated.state = 'fitting';
+                updated.stateProgress = 10;
+              } else if (matchedVar && matchedVar.backroomStock > 0) {
+                // Waiting for staff to fetch from backroom
+                updated.patience -= 6;
+              } else {
+                // Completely out of stock
+                updated.patience -= 20;
+              }
             }
             break;
           }
@@ -483,7 +771,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             break;
         }
 
-        // Check if patience drops to 0
         if (updated.state !== 'satisfied' && updated.patience <= 0) {
           updated.state = 'angry';
         }
@@ -491,35 +778,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return updated;
       });
 
-      // 4. Resolve completed transactions and leaving customers
+      // 7. Resolve finished customers
       const remainingCustomers: Customer[] = [];
+      const branchBonus = current.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.revenueBonusPercent, 0) / 100;
+
       for (const cust of nextCustomers) {
         if (cust.state === 'satisfied') {
-          // Cash calculation + tip from POS upgrade
-          const tipPercent = 0.05 * current.upgrades.posCounter.level;
-          const baseBill = cust.billAmount || 150000;
-          const finalBill = Math.round(baseBill * (1 + tipPercent));
-          
-          cashEarnedThisTick += finalBill;
-          expEarnedThisTick += 20;
-          servedCountThisTick += 1;
-          sound.playCash();
+          const tipMultiplier = 1 + (0.05 * current.upgrades.posCounter.level) + branchBonus;
+          const finalBill = Math.round((cust.billAmount || 180000) * tipMultiplier);
 
-          // Add floating text
+          floorSalesCash += finalBill;
+          expEarned += 25;
+          servedCount += 1;
+          sound.playCash();
           addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ`, 'money');
-          // Customer departs happy
         } else if (cust.state === 'angry') {
-          lostCountThisTick += 1;
+          lostCount += 1;
           sound.playAngry();
-          addFloatingNumber('💔 Khách bỏ về!', 'sad');
-          // Customer departs angry
+          addFloatingNumber('💔 Khách hết kiên nhẫn!', 'sad');
         } else {
           remainingCustomers.push(cust);
         }
       }
 
-      // 5. Calculate Star Level Up
-      let nextRepExp = current.reputationExp + expEarnedThisTick;
+      // 8. Level Up Star Reputation
+      let nextRepExp = current.reputationExp + expEarned;
       let nextStars = current.reputationStars;
       let nextThreshold = current.reputationNextExp;
 
@@ -530,28 +813,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sound.playLevelUp();
         confetti({
           particleCount: 100,
-          spread: 70,
+          spread: 75,
           origin: { y: 0.4 }
         });
-        addFloatingNumber(`⭐ LÊN CẤP ${nextStars} SAO!`, 'rep');
+        addFloatingNumber(`⭐ ĐẠT UY TÍN ${nextStars} SAO!`, 'rep');
       }
+
+      const totalEarnedThisTick = floorSalesCash + onlineOrderCashEarned;
 
       setState(prev => ({
         ...prev,
         dayTime: nextDayTime,
-        cash: prev.cash + cashEarnedThisTick,
-        totalEarned: prev.totalEarned + cashEarnedThisTick,
+        cash: prev.cash + totalEarnedThisTick,
+        totalEarned: prev.totalEarned + totalEarnedThisTick,
         reputationExp: nextRepExp,
         reputationStars: nextStars,
         reputationNextExp: nextThreshold,
-        inventory: nextInventory,
+        styles: updatedStyles,
+        purchaseOrders: remainingPOs,
+        onlineOrders: nextOnlineOrders,
+        returnRequests: nextReturns,
         customers: remainingCustomers,
         currentDayStats: {
           ...prev.currentDayStats,
-          revenue: prev.currentDayStats.revenue + cashEarnedThisTick,
-          profit: prev.currentDayStats.profit + cashEarnedThisTick,
-          customersServed: prev.currentDayStats.customersServed + servedCountThisTick,
-          customersLost: prev.currentDayStats.customersLost + lostCountThisTick
+          revenue: prev.currentDayStats.revenue + totalEarnedThisTick,
+          profit: prev.currentDayStats.profit + totalEarnedThisTick,
+          customersServed: prev.currentDayStats.customersServed + servedCount,
+          customersLost: prev.currentDayStats.customersLost + lostCount,
+          onlineOrdersCompleted: prev.currentDayStats.onlineOrdersCompleted + (onlineOrderCashEarned > 0 ? 1 : 0)
         }
       }));
 
@@ -566,16 +855,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         state,
         activeTab,
         setActiveTab,
-        restockItem,
-        upgradeShop,
+        replenishVariantToFloor,
+        replenishAllStyleToFloor,
+        createPurchaseOrder,
         serveCustomer,
-        rushCheckout,
         rushFitting,
+        rushCheckout,
+        resolveReturn,
+        speedUpOnlineOrder,
+        upgradeShop,
+        unlockBranch,
+        claimLookbookOutfit,
         startNextDay,
         toggleSound,
         isSoundEnabled,
         isDaySummaryOpen,
         closeDaySummary,
+        resetGame,
         addFloatingNumber
       }}
     >

@@ -12,7 +12,9 @@ export const ShopUpgrades: React.FC = () => {
     'posCounter',
     'shopSpace',
     'marketing',
-    'staffAuto'
+    'staffAuto',
+    'backroomStorage',
+    'deliverySpeed'
   ];
 
   return (

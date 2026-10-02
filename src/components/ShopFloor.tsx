@@ -3,13 +3,15 @@ import { motion } from 'framer-motion';
 import { 
   Zap, 
   ShoppingBag, 
-  PlusCircle, 
   AlertCircle, 
   HeartHandshake,
-  CheckCircle2
+  CheckCircle2,
+  ArrowDownToLine,
+  Undo2,
+  Check,
+  X
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
-import type { ItemCategory } from '../types/game';
 
 export const ShopFloor: React.FC = () => {
   const { 
@@ -17,15 +19,14 @@ export const ShopFloor: React.FC = () => {
     serveCustomer, 
     rushFitting, 
     rushCheckout, 
-    setActiveTab, 
-    restockItem 
+    replenishAllStyleToFloor,
+    resolveReturn,
+    setActiveTab 
   } = useGame();
 
   const fittingCustomers = state.customers.filter(c => c.state === 'fitting');
   const checkoutCustomers = state.customers.filter(c => c.state === 'checkout');
   const browsingCustomers = state.customers.filter(c => c.state === 'browsing' || c.state === 'entering');
-
-  const categories: ItemCategory[] = ['tshirt', 'jeans', 'sneaker', 'handbag'];
 
   return (
     <div className="space-y-6">
@@ -37,10 +38,10 @@ export const ShopFloor: React.FC = () => {
           </div>
           <div>
             <h2 className="text-base md:text-lg font-heading font-bold text-slate-800 m-0">
-              Mặt Bằng Cửa Hàng ({state.customers.length}/{3 + state.upgrades.shopSpace.level * 2} khách)
+              Sàn Bán Hàng ({state.customers.length}/{3 + state.upgrades.shopSpace.level * 2} khách)
             </h2>
             <p className="text-xs text-slate-500">
-              Chạm vào khách để Stylist tư vấn tăng kiên nhẫn!
+              Chạm vào khách để Stylist tư vấn phục vụ và hồi phục kiên nhẫn!
             </p>
           </div>
         </div>
@@ -79,109 +80,181 @@ export const ShopFloor: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Fashion Racks with Juicy Floating Animation */}
+      {/* Return & Exchange Desk (If any pending) */}
+      {state.returnRequests.length > 0 && (
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-3xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-heading font-bold text-rose-800 flex items-center gap-2 m-0">
+              <Undo2 className="w-4 h-4 text-rose-600" />
+              Quầy Yêu Cầu Đổi Trả Hàng ({state.returnRequests.length})
+            </h3>
+            <span className="text-[11px] text-rose-500 font-semibold">
+              Giải quyết nhanh để giữ uy tín shop
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {state.returnRequests.map(ret => (
+              <div key={ret.id} className="bg-white p-3 rounded-2xl border border-rose-200 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">{ret.customerAvatar}</span>
+                  <div>
+                    <div className="text-xs font-heading font-bold text-slate-800">
+                      {ret.customerName} • <span className="text-rose-600">{ret.styleName}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Lý do: {ret.reasonText}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-700">
+                      Hoàn: {ret.refundAmount.toLocaleString('vi-VN')}đ
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => resolveReturn(ret.id, true)}
+                    className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl shadow-xs"
+                    title="Đồng ý đổi/hoàn tiền"
+                  >
+                    <Check className="w-4 h-4" />
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => resolveReturn(ret.id, false)}
+                    className="p-2 bg-slate-200 hover:bg-rose-200 text-slate-600 hover:text-rose-700 rounded-xl"
+                    title="Từ chối"
+                  >
+                    <X className="w-4 h-4" />
+                  </motion.button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 6 Fashion Racks with Variant Availability */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-heading font-bold text-slate-700 flex items-center gap-1.5 m-0">
             <ShoppingBag className="w-4 h-4 text-pink-500" />
-            Kệ Hàng Thời Trang
+            Kệ Hàng Thời Trang Trưng Bày
           </h3>
           <button 
             onClick={() => setActiveTab('inventory')}
             className="text-xs font-bold text-pink-600 hover:text-pink-700 hover:underline flex items-center gap-1"
           >
-            Quản lý kho sỉ →
+            Chi tiết ma trận Size & Màu →
           </button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          {categories.map((catKey) => {
-            const item = state.inventory[catKey];
-            const isOutOfStock = item.stock === 0;
-            const isLowStock = item.stock <= 3 && !isOutOfStock;
-            const stockPercent = Math.min(100, (item.stock / item.shelfCapacity) * 100);
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {Object.values(state.styles).map((style) => {
+            const totalFloor = style.variants.reduce((sum, v) => sum + v.floorStock, 0);
+            const totalBackroom = style.variants.reduce((sum, v) => sum + v.backroomStock, 0);
+            const isOutOfStock = totalFloor === 0;
+            const canReplenish = totalBackroom > 0;
 
             return (
               <motion.div
-                key={item.id}
-                animate={{ y: [0, -6, 0] }}
+                key={style.id}
+                animate={{ y: [0, -5, 0] }}
                 transition={{ 
-                  duration: 3 + (catKey.length % 2), 
+                  duration: 3 + (style.id.length % 2), 
                   repeat: Infinity, 
                   ease: "easeInOut" 
                 }}
-                className={`relative bg-white rounded-3xl p-4 border-2 shadow-game-card transition-all ${
-                  isOutOfStock 
-                    ? 'border-rose-300 bg-rose-50/50' 
-                    : isLowStock 
-                    ? 'border-amber-300' 
+                className={`relative bg-white rounded-3xl p-4 border-2 shadow-game-card transition-all flex flex-col justify-between ${
+                  isOutOfStock && !canReplenish
+                    ? 'border-rose-300 bg-rose-50/40' 
+                    : isOutOfStock && canReplenish
+                    ? 'border-amber-300 bg-amber-50/30'
                     : 'border-pink-200'
                 }`}
               >
-                {/* Out of Stock Ribbon */}
-                {isOutOfStock && (
-                  <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-heading font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 animate-bounceShort">
-                    <AlertCircle className="w-3 h-3" /> HẾT HÀNG!
-                  </div>
-                )}
+                <div>
+                  {/* Out of Stock Badges */}
+                  {isOutOfStock && !canReplenish && (
+                    <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-heading font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 animate-bounceShort">
+                      <AlertCircle className="w-3 h-3" /> HẾT CẢ KHO
+                    </div>
+                  )}
+                  {isOutOfStock && canReplenish && (
+                    <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-heading font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                      📦 KHO CÒN HÀNG
+                    </div>
+                  )}
 
-                <div className="flex items-start justify-between mb-2">
-                  <div className="text-3xl md:text-4xl filter drop-shadow">
-                    {item.emoji}
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="text-3xl md:text-4xl filter drop-shadow">
+                      {style.emoji}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-pink-600 block">
+                        {style.basePrice.toLocaleString('vi-VN')}đ
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {style.variants.length} phân loại size
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold text-pink-600 block">
-                      {item.sellPrice.toLocaleString('vi-VN')}đ
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      Gốc: {item.costPrice.toLocaleString('vi-VN')}đ
-                    </span>
+
+                  <h4 className="text-xs md:text-sm font-heading font-bold text-slate-800 line-clamp-1 mb-1">
+                    {style.name}
+                  </h4>
+
+                  {/* Stock Metrics (Floor vs Backroom) */}
+                  <div className="space-y-1 mb-3 bg-slate-50 p-2 rounded-xl text-[11px] font-semibold">
+                    <div className="flex justify-between text-slate-700">
+                      <span>Trên kệ bán lẻ:</span>
+                      <span className={totalFloor === 0 ? 'text-rose-500 font-bold' : 'text-emerald-700 font-bold'}>
+                        {totalFloor} / {style.shelfCapacity}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-slate-500 text-[10px]">
+                      <span>Kho chứa phía sau:</span>
+                      <span className="text-purple-600 font-bold">
+                        {totalBackroom} chiếc
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Variant Pills Preview */}
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {style.variants.slice(0, 3).map(v => (
+                      <span key={v.id} className="text-[9px] bg-pink-100/70 text-pink-700 px-1.5 py-0.5 rounded-md font-semibold">
+                        {v.size} ({v.floorStock})
+                      </span>
+                    ))}
+                    {style.variants.length > 3 && (
+                      <span className="text-[9px] text-slate-400 py-0.5">+{style.variants.length - 3}</span>
+                    )}
                   </div>
                 </div>
 
-                <h4 className="text-xs md:text-sm font-heading font-bold text-slate-800 line-clamp-1 mb-1">
-                  {item.name}
-                </h4>
-
-                {/* Stock progress */}
-                <div className="space-y-1 mb-3">
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-500">
-                    <span>Còn lại:</span>
-                    <span className={isOutOfStock ? 'text-rose-500 font-bold' : 'text-slate-700'}>
-                      {item.stock} / {item.shelfCapacity}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        isOutOfStock 
-                          ? 'bg-rose-400' 
-                          : isLowStock 
-                          ? 'bg-amber-400' 
-                          : 'bg-gradient-to-r from-pink-400 to-rose-400'
-                      }`}
-                      style={{ width: `${stockPercent}%` }}
-                    />
-                  </div>
+                {/* Replenish Button from Backroom */}
+                <div>
+                  {canReplenish ? (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => replenishAllStyleToFloor(style.id)}
+                      className="btn-3d w-full py-1.5 px-2 rounded-xl text-xs font-heading font-bold bg-purple-500 hover:bg-purple-600 text-white shadow-game-btn flex items-center justify-center gap-1.5"
+                    >
+                      <ArrowDownToLine className="w-3.5 h-3.5" />
+                      <span>Đưa {totalBackroom} cái lên kệ</span>
+                    </motion.button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveTab('procurement')}
+                      className="w-full py-1.5 px-2 rounded-xl text-xs font-heading font-bold bg-slate-100 hover:bg-pink-100 text-slate-500 hover:text-pink-600 border border-slate-200 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span>Đặt thêm từ xưởng →</span>
+                    </button>
+                  )}
                 </div>
-
-                {/* Quick Restock Button */}
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => restockItem(catKey, 5)}
-                  disabled={item.stock >= item.shelfCapacity || state.cash < item.costPrice * 5}
-                  className={`w-full py-1.5 px-2 rounded-xl text-xs font-heading font-bold flex items-center justify-center gap-1 transition-all ${
-                    item.stock >= item.shelfCapacity
-                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : state.cash < item.costPrice * 5
-                      ? 'bg-rose-100 text-rose-400 cursor-not-allowed'
-                      : 'bg-pink-500 hover:bg-pink-600 text-white shadow-game-btn-pink'
-                  }`}
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Nhập +5 ({((item.costPrice * 5) / 1000).toFixed(0)}k)</span>
-                </motion.button>
               </motion.div>
             );
           })}
@@ -241,15 +314,15 @@ export const ShopFloor: React.FC = () => {
                       <div className="text-[11px] font-heading font-bold text-purple-900 truncate">
                         {cust.name}
                       </div>
-                      <div className="w-full bg-purple-200 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                      <div className="text-[9px] text-purple-600 font-medium truncate">
+                        Thử Size {cust.requestedSize}
+                      </div>
+                      <div className="w-full bg-purple-200 rounded-full h-1.5 mt-1 overflow-hidden">
                         <div 
                           className="bg-purple-600 h-full rounded-full transition-all duration-300"
                           style={{ width: `${cust.stateProgress}%` }}
                         />
                       </div>
-                      <span className="text-[9px] text-purple-600 font-bold block mt-0.5">
-                        Thử đồ {cust.stateProgress}%
-                      </span>
                     </motion.div>
                   ) : (
                     <div className="text-center">
@@ -335,7 +408,7 @@ export const ShopFloor: React.FC = () => {
       </div>
 
       {/* Browsing Customers on Shop Floor */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-5 border-2 border-pink-200 shadow-game-card">
+      <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 border-2 border-pink-200 shadow-game-card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm md:text-base font-heading font-bold text-slate-800 flex items-center gap-2 m-0">
             <HeartHandshake className="w-4 h-4 text-pink-500" />
@@ -349,13 +422,15 @@ export const ShopFloor: React.FC = () => {
         {browsingCustomers.length === 0 ? (
           <div className="py-8 text-center text-slate-400 text-xs">
             <span className="text-3xl block mb-2">🛍️</span>
-            Tiệm đang đón lượt khách tiếp theo...
+            Tiệm đang chuẩn bị đón lượt khách tiếp theo...
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {browsingCustomers.map((cust) => {
-              const targetItem = state.inventory[cust.targetCategory];
-              const isTargetOutOfStock = targetItem.stock === 0;
+              const targetStyle = state.styles[cust.targetStyleId];
+              const targetVar = targetStyle?.variants.find(v => v.id === cust.cartVariantId);
+              const isFloorOutOfStock = targetVar ? targetVar.floorStock === 0 : false;
+              const hasBackroomStock = targetVar ? targetVar.backroomStock > 0 : false;
 
               return (
                 <motion.div
@@ -364,7 +439,7 @@ export const ShopFloor: React.FC = () => {
                   whileTap={{ scale: 0.97 }}
                   onClick={() => serveCustomer(cust.id)}
                   className={`p-3 rounded-2xl border-2 cursor-pointer transition-all ${
-                    isTargetOutOfStock
+                    isFloorOutOfStock
                       ? 'bg-rose-50 border-rose-300 shadow-sm'
                       : 'bg-white border-pink-200 hover:border-pink-300 shadow-sm'
                   }`}
@@ -376,11 +451,15 @@ export const ShopFloor: React.FC = () => {
                         <div className="text-xs font-heading font-bold text-slate-800">
                           {cust.name}
                         </div>
-                        <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                          Tìm {targetItem.emoji} {targetItem.name.split(' ')[0]}
+                        <div className="text-[10px] text-pink-600 font-semibold flex items-center gap-1">
+                          {cust.archetype}
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 mb-2">
+                    Tìm: <span className="font-bold text-slate-800">{targetStyle?.name}</span> ({cust.preferredColor} - Size {cust.requestedSize})
                   </div>
 
                   {/* Patience Bar */}
@@ -405,9 +484,12 @@ export const ShopFloor: React.FC = () => {
                     </div>
                   </div>
 
-                  {isTargetOutOfStock && (
-                    <div className="mt-2 text-[10px] text-rose-600 font-bold flex items-center gap-1 bg-rose-100/70 px-2 py-0.5 rounded-lg">
-                      <AlertCircle className="w-3 h-3" /> Hết món này rồi!
+                  {isFloorOutOfStock && (
+                    <div className="mt-2 text-[10px] font-bold flex items-center justify-between bg-rose-100 text-rose-700 px-2 py-1 rounded-xl">
+                      <span>{hasBackroomStock ? 'Kho còn size này!' : 'Đã hết hàng!'}</span>
+                      {hasBackroomStock && (
+                        <span className="underline">Lấy ngay</span>
+                      )}
                     </div>
                   )}
                 </motion.div>
