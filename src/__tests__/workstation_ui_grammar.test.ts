@@ -64,6 +64,8 @@ describe('Interactive Workstation UI & Operational Grammar Test Suite', () => {
       averageSatisfaction: 100,
     },
     yesterdayStats: undefined,
+    completedJourneyGoalIds: [],
+    journeyGoalProgress: {},
     floatingNumbers: [],
   });
 

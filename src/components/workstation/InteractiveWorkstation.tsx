@@ -18,6 +18,7 @@ import { POSRegisterModal } from './POSRegisterModal';
 import { GoodsReceivingStation } from './GoodsReceivingStation';
 import { ReturnExchangeStation } from './ReturnExchangeStation';
 import { WorkstationContextSwitcher } from './WorkstationContextSwitcher';
+import { First7DaysJourneyWidget } from '../First7DaysJourneyWidget';
 import type { WorkstationContextType } from '../../types/workstation';
 
 export const InteractiveWorkstation: React.FC = () => {
@@ -131,6 +132,9 @@ export const InteractiveWorkstation: React.FC = () => {
         
         {/* 1. Workstation HUD (Time, Cash, Paid Revenue, Pending Cart, Star Reputation) */}
         <WorkstationHUD onToggleViewMode={() => setActiveTab('shop')} />
+
+        {/* 1b. First 7 Days Journey Companion Bar */}
+        <First7DaysJourneyWidget />
 
         {/* 2. Context Switcher Bar (10 Retail Contexts) */}
         <WorkstationContextSwitcher

@@ -442,6 +442,11 @@ export interface GameState {
   }>;
   activeWorkstationContext: string;
 
+  // First 7 Days Journey & Player Experience Learning
+  completedJourneyGoalIds: string[];
+  journeyGoalProgress: Record<string, number>;
+  week2FocusChoice?: 'INVENTORY' | 'SERVICE' | 'COST_EFFICIENCY' | 'BRAND_REPUTATION';
+
   // Visual Effects
   floatingNumbers: FloatingNumber[];
 }

@@ -24,6 +24,8 @@ import {
   INITIAL_REVIEWS,
   INITIAL_ADVISOR_INSIGHTS
 } from '../data/fashionCatalog';
+import type { Week2FocusChoice } from '../types/journey';
+import { FIRST_7_DAYS_JOURNEY_DATA } from '../data/journeyConfig';
 import { sound } from '../utils/sound';
 import { 
   saveGameState, 
@@ -118,6 +120,15 @@ interface GameContextType {
   manualSave: () => void;
   resetGame: () => void;
   addFloatingNumber: (text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order' | 'clean', x?: number, y?: number) => void;
+  // Journey & Cute Learning
+  isWhyModalOpen: boolean;
+  openWhyModal: () => void;
+  closeWhyModal: () => void;
+  isWeek7ReviewOpen: boolean;
+  openWeek7Review: () => void;
+  closeWeek7Review: () => void;
+  selectWeek2Focus: (choice: Week2FocusChoice) => void;
+  trackJourneyGoal: (goalId: string, increment?: number) => void;
 }
 
 const INITIAL_GAME_STATE: GameState = {
@@ -257,6 +268,9 @@ const INITIAL_GAME_STATE: GameState = {
   advisorInsights: INITIAL_ADVISOR_INSIGHTS,
   prepTableItems: [],
   activeWorkstationContext: 'CUSTOMER_ITEM_FULFILLMENT',
+  completedJourneyGoalIds: [],
+  journeyGoalProgress: {},
+  week2FocusChoice: undefined,
   floatingNumbers: []
 };
 
@@ -293,6 +307,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
   const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
+  const [isWeek7ReviewOpen, setIsWeek7ReviewOpen] = useState(false);
+
+  const openWhyModal = useCallback(() => {
+    sound.playPop();
+    setIsWhyModalOpen(true);
+  }, []);
+
+  const closeWhyModal = useCallback(() => {
+    setIsWhyModalOpen(false);
+  }, []);
+
+  const openWeek7Review = useCallback(() => {
+    sound.playLevelUp();
+    setIsWeek7ReviewOpen(true);
+  }, []);
+
+  const closeWeek7Review = useCallback(() => {
+    setIsWeek7ReviewOpen(false);
+  }, []);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -323,14 +357,67 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 1500);
   }, []);
 
+  const selectWeek2Focus = useCallback((choice: Week2FocusChoice) => {
+    setState(prev => {
+      sound.playPop();
+      return {
+        ...prev,
+        week2FocusChoice: choice,
+        completedJourneyGoalIds: prev.completedJourneyGoalIds.includes('day7_choose_focus')
+          ? prev.completedJourneyGoalIds
+          : [...prev.completedJourneyGoalIds, 'day7_choose_focus']
+      };
+    });
+    addFloatingNumber('🏆 Đã chọn định hướng Tuần 2!', 'rep');
+  }, [addFloatingNumber]);
+
+  const trackJourneyGoal = useCallback((goalId: string, increment = 1) => {
+    setState(prev => {
+      if (prev.completedJourneyGoalIds.includes(goalId)) return prev;
+      const current = (prev.journeyGoalProgress[goalId] || 0) + increment;
+      const dayMeta = FIRST_7_DAYS_JOURNEY_DATA[prev.day] || FIRST_7_DAYS_JOURNEY_DATA[7];
+      const targetGoal = dayMeta?.goals.find(g => g.id === goalId);
+      const isComplete = targetGoal ? current >= targetGoal.targetCount : true;
+
+      const newCompleted = isComplete 
+        ? [...prev.completedJourneyGoalIds, goalId]
+        : prev.completedJourneyGoalIds;
+
+      if (isComplete) {
+        sound.playPop();
+        try {
+          confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.5 }
+          });
+        } catch {}
+        addFloatingNumber('✨ Hoàn thành mục tiêu ngày!', 'rep');
+      }
+
+      return {
+        ...prev,
+        completedJourneyGoalIds: newCompleted,
+        journeyGoalProgress: {
+          ...prev.journeyGoalProgress,
+          [goalId]: current
+        }
+      };
+    });
+  }, [addFloatingNumber]);
+
   // Quick manual cleaning of floor
   const sweepFloor = useCallback(() => {
     setState(prev => {
       sound.playPop();
       addFloatingNumber('✨ Quét dọn sạch bóng!', 'clean');
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day4_sweep_floor')) newGoals.push('day4_sweep_floor');
+      if (!newGoals.includes('day4_keep_cleanliness')) newGoals.push('day4_keep_cleanliness');
       return {
         ...prev,
-        cleanliness: Math.min(100, prev.cleanliness + 25)
+        cleanliness: Math.min(100, prev.cleanliness + 25),
+        completedJourneyGoalIds: newGoals
       };
     });
   }, [addFloatingNumber]);
@@ -354,6 +441,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       sound.playPop();
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day2_restock_rack')) newGoals.push('day2_restock_rack');
+
       return {
         ...prev,
         styles: {
@@ -362,7 +452,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...style,
             variants: updatedVariants
           }
-        }
+        },
+        completedJourneyGoalIds: newGoals
       };
     });
   }, []);
@@ -819,6 +910,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fittingAttempts: (cust.fittingAttempts || 0) + 1
       };
 
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day3_fitting_assist')) newGoals.push('day3_fitting_assist');
+      if (!newGoals.includes('day3_fitting_exchange')) newGoals.push('day3_fitting_exchange');
+      if (!newGoals.includes('day3_get_review')) newGoals.push('day3_get_review');
+
       return {
         ...prev,
         styles: {
@@ -829,6 +925,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         },
         customers: updatedCustomers,
+        completedJourneyGoalIds: newGoals,
         storeTasks: prev.storeTasks.map(t => 
           (t.targetCustomerId === customerId && t.type === 'FITTING_SIZE_REQUEST') ? { ...t, status: 'completed' as const } : t
         )
@@ -906,6 +1003,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sound.playPop();
       addFloatingNumber(`🪡 Đặt lên bàn: ${style.name} (${variant.size})`, 'order');
 
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day1_prep_table')) newGoals.push('day1_prep_table');
+      if (!newGoals.includes('day1_pick_shirt')) newGoals.push('day1_pick_shirt');
+      if (source === 'backroom' && !newGoals.includes('day2_backroom_retrieve')) newGoals.push('day2_backroom_retrieve');
+
       return {
         ...prev,
         styles: {
@@ -915,7 +1017,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             variants: updatedVariants
           }
         },
-        prepTableItems: [...prev.prepTableItems, newItem]
+        prepTableItems: [...prev.prepTableItems, newItem],
+        completedJourneyGoalIds: newGoals
       };
     });
   }, [addFloatingNumber]);
@@ -1039,11 +1142,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         t.targetCustomerId === customerId ? { ...t, status: 'completed' as const } : t
       );
 
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day2_match_size')) newGoals.push('day2_match_size');
+      if (!newGoals.includes('day3_fitting_assist')) newGoals.push('day3_fitting_assist');
+
       return {
         ...prev,
         prepTableItems: updatedPrep,
         customers: updatedCusts,
-        storeTasks: updatedTasks
+        storeTasks: updatedTasks,
+        completedJourneyGoalIds: newGoals
       };
     });
   }, [addFloatingNumber]);
@@ -1085,6 +1193,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const totalVisitors = nextServed + prev.currentDayStats.customersLost;
       const newConversionRate = Math.round((nextServed / Math.max(1, totalVisitors)) * 100);
 
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day1_pos_checkout')) newGoals.push('day1_pos_checkout');
+      if (!newGoals.includes('day4_serve_customers')) newGoals.push('day4_serve_customers');
+      if (!newGoals.includes('day5_high_volume')) newGoals.push('day5_high_volume');
+      if (!newGoals.includes('day7_serve_master')) newGoals.push('day7_serve_master');
+      if (prev.day === 6 && !newGoals.includes('day6_evening_peak')) newGoals.push('day6_evening_peak');
+
       return {
         ...prev,
         cash: prev.cash + finalBill,
@@ -1092,6 +1207,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reputationExp: prev.reputationExp + 30,
         customers: updatedCustomers,
         reviews: newReviews.slice(0, 30),
+        completedJourneyGoalIds: newGoals,
         currentDayStats: {
           ...prev.currentDayStats,
           revenue: prev.currentDayStats.revenue + finalBill,
@@ -1350,10 +1466,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       sound.playPop();
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (!newGoals.includes('day5_hire_staff')) newGoals.push('day5_hire_staff');
+      if (!newGoals.includes('day5_assign_role')) newGoals.push('day5_assign_role');
+
       return {
         ...prev,
         cash: prev.cash - hiringFee,
-        employees: [...prev.employees, newEmp]
+        employees: [...prev.employees, newEmp],
+        completedJourneyGoalIds: newGoals
       };
     });
   }, []);
@@ -1493,6 +1614,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDaySummaryOpen(false);
     sound.playBell();
 
+    if (stateRef.current.day === 7) {
+      setIsWeek7ReviewOpen(true);
+    }
+
     setState(prev => {
       // Calculate daily payroll and active rent
       const totalDailyPayroll = prev.employees.reduce((sum, e) => sum + e.wagePerDay, 0);
@@ -1535,6 +1660,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
+      const newGoals = [...prev.completedJourneyGoalIds];
+      if (prev.day === 6) {
+        if (!newGoals.includes('day6_check_traffic')) newGoals.push('day6_check_traffic');
+        if (!newGoals.includes('day6_low_loss')) newGoals.push('day6_low_loss');
+      }
+      if (prev.day === 7) {
+        if (!newGoals.includes('day7_serve_master')) newGoals.push('day7_serve_master');
+        if (!newGoals.includes('day7_review_report')) newGoals.push('day7_review_report');
+      }
+
       return {
         ...prev,
         day: prev.day + 1,
@@ -1550,6 +1685,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         customers: [],
         yesterdayStats: { ...prev.currentDayStats, payroll: totalDailyPayroll, rent: totalDailyRent },
         advisorInsights: newInsights.length > 0 ? newInsights : prev.advisorInsights,
+        completedJourneyGoalIds: newGoals,
         currentDayStats: {
           revenue: 0,
           cost: 0,
@@ -2271,7 +2407,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         switchSlot,
         manualSave,
         resetGame,
-        addFloatingNumber
+        addFloatingNumber,
+        isWhyModalOpen,
+        openWhyModal,
+        closeWhyModal,
+        isWeek7ReviewOpen,
+        openWeek7Review,
+        closeWeek7Review,
+        selectWeek2Focus,
+        trackJourneyGoal
       }}
     >
       {children}

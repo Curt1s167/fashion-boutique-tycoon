@@ -29,6 +29,8 @@ import { FloatingMoney } from './components/FloatingMoney';
 import { DaySummaryModal } from './components/DaySummaryModal';
 import { BusinessAdvisorModal } from './components/BusinessAdvisorModal';
 import { SaveSlotModal } from './components/SaveSlotModal';
+import { CuteWhyModal } from './components/CuteWhyModal';
+import { Week7ReviewModal } from './components/Week7ReviewModal';
 
 const GameMain: React.FC = () => {
   const { activeTab, setActiveTab, state } = useGame();
@@ -110,6 +112,8 @@ const GameMain: React.FC = () => {
       <DaySummaryModal />
       <BusinessAdvisorModal />
       <SaveSlotModal />
+      <CuteWhyModal />
+      <Week7ReviewModal />
 
       {/* Main Container */}
       <main className="max-w-6xl w-full mx-auto px-4 py-5 flex-1 flex flex-col">

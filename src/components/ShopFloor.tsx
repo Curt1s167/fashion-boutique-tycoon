@@ -14,6 +14,7 @@ import {
   Users
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
+import { First7DaysJourneyWidget } from './First7DaysJourneyWidget';
 
 export const ShopFloor: React.FC = () => {
   const { 
@@ -39,6 +40,9 @@ export const ShopFloor: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* First 7 Days Journey Companion Bar */}
+      <First7DaysJourneyWidget />
+
       {/* 1. Player Carry Tray & Store Tasks Strip */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Player Hands Tray */}
