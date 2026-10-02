@@ -1,4 +1,14 @@
-import type { ProductStyle, Supplier, LookbookOutfit, BranchStore, SocialPost } from '../types/game';
+import type { 
+  ProductStyle, 
+  Supplier, 
+  LookbookOutfit, 
+  BranchStore, 
+  SocialPost, 
+  Employee, 
+  CustomerReview, 
+  CityMarketProfile,
+  BusinessAdvisorInsight
+} from '../types/game';
 
 export const INITIAL_SUPPLIERS: Record<string, Supplier> = {
   'sup-korea': {
@@ -151,6 +161,216 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
   }
 };
 
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: 'emp-1',
+    name: 'Ngọc Lan',
+    avatar: '👩‍💼',
+    role: 'manager',
+    roleLabel: 'Cửa Hàng Trưởng (Store Manager)',
+    wagePerDay: 45000,
+    skillLevel: 4,
+    morale: 95,
+    energy: 90,
+    stress: 20,
+    shift: 'morning',
+    branchId: 'branch-main'
+  },
+  {
+    id: 'emp-2',
+    name: 'Thanh Hằng',
+    avatar: '💁‍♀️',
+    role: 'sales',
+    roleLabel: 'Stylist Tư Vấn Bán Lẻ',
+    wagePerDay: 28000,
+    skillLevel: 3,
+    morale: 88,
+    energy: 85,
+    stress: 25,
+    shift: 'morning',
+    branchId: 'branch-main'
+  },
+  {
+    id: 'emp-3',
+    name: 'Minh Tuấn',
+    avatar: '🧑‍💻',
+    role: 'cashier',
+    roleLabel: 'Thu Ngân Quầy POS',
+    wagePerDay: 25000,
+    skillLevel: 3,
+    morale: 90,
+    energy: 88,
+    stress: 15,
+    shift: 'afternoon',
+    branchId: 'branch-main'
+  },
+  {
+    id: 'emp-4',
+    name: 'Cô Ba',
+    avatar: '🧹',
+    role: 'cleaning',
+    roleLabel: 'Nhân Viên Vệ Sinh & Sắp Xếp',
+    wagePerDay: 20000,
+    skillLevel: 4,
+    morale: 92,
+    energy: 82,
+    stress: 10,
+    shift: 'morning',
+    branchId: 'branch-main'
+  }
+];
+
+export const INITIAL_REVIEWS: CustomerReview[] = [
+  {
+    id: 'rev-1',
+    customerName: 'Khánh Vy',
+    customerAvatar: '👱‍♀️',
+    stars: 5,
+    category: 'service',
+    comment: 'Cửa hàng trưởng tư vấn phối đồ có gu dã man! Không gian thơm tho, sạch sẽ nữa. Sẽ ủng hộ dài dài!',
+    timestamp: 'Hôm qua',
+    replied: true,
+    replyType: 'thank',
+    replyNote: 'Dạ tiệm cảm ơn Khánh Vy nhiều lắm ạ! Chúc nàng luôn xinh đẹp ✨'
+  },
+  {
+    id: 'rev-2',
+    customerName: 'Hoàng Nam',
+    customerAvatar: '🧑',
+    stars: 3,
+    category: 'size',
+    comment: 'Quần jeans form đẹp nhưng lúc mình ghé thì kệ hết size L, phải đợi nhân viên vào kho lấy hơi lâu.',
+    timestamp: '2 ngày trước',
+    replied: false
+  },
+  {
+    id: 'rev-3',
+    customerName: 'Bảo Ngọc',
+    customerAvatar: '👧',
+    stars: 5,
+    category: 'fitting',
+    comment: 'Phòng thử đồ gương LED selfie ảo tung chảo! Thử 3 bộ quất luôn cả 3!',
+    timestamp: '3 ngày trước',
+    replied: true,
+    replyType: 'thank',
+    replyNote: 'Hihi cảm ơn nàng đã dành lời khen cho góc sống ảo của tiệm nha!'
+  }
+];
+
+export const VIETNAM_CITIES: CityMarketProfile[] = [
+  {
+    id: 'city-hcm',
+    cityName: 'TP. Hồ Chí Minh',
+    region: 'Nam',
+    footTrafficIndex: 1.8,
+    rentPerDay: 80000,
+    avgSpending: 450000,
+    dominantDemand: 'Gen Z, Y2K & Streetwear năng động',
+    openCost: 2000000,
+    coordinates: { x: 55, y: 82 }
+  },
+  {
+    id: 'city-hanoi',
+    cityName: 'Hà Nội',
+    region: 'Bắc',
+    footTrafficIndex: 1.6,
+    rentPerDay: 75000,
+    avgSpending: 520000,
+    dominantDemand: 'Dạ Tweed, Blazer thanh lịch & Vintage',
+    openCost: 3500000,
+    coordinates: { x: 42, y: 18 }
+  },
+  {
+    id: 'city-danang',
+    cityName: 'Đà Nẵng',
+    region: 'Trung',
+    footTrafficIndex: 1.3,
+    rentPerDay: 50000,
+    avgSpending: 380000,
+    dominantDemand: 'Thời trang dạo biển, Linen & Pastel',
+    openCost: 1800000,
+    coordinates: { x: 65, y: 48 }
+  },
+  {
+    id: 'city-cantho',
+    cityName: 'Cần Thơ',
+    region: 'Nam',
+    footTrafficIndex: 1.1,
+    rentPerDay: 35000,
+    avgSpending: 320000,
+    dominantDemand: 'Trang phục thường ngày & Baby Tee',
+    openCost: 1500000,
+    coordinates: { x: 45, y: 90 }
+  },
+  {
+    id: 'city-haiphong',
+    cityName: 'Hải Phòng',
+    region: 'Bắc',
+    footTrafficIndex: 1.2,
+    rentPerDay: 40000,
+    avgSpending: 410000,
+    dominantDemand: 'Sneaker cá tính & Áo khoác sành điệu',
+    openCost: 1600000,
+    coordinates: { x: 52, y: 22 }
+  }
+];
+
+export const INITIAL_BRANCHES: BranchStore[] = [
+  {
+    id: 'branch-main',
+    name: 'Boutique Trụ Sở Chính (Quận 1)',
+    cityId: 'city-hcm',
+    cityName: 'TP. Hồ Chí Minh',
+    district: 'Phố Đi Bộ Nguyễn Huệ, Quận 1',
+    dailyRent: 0,
+    revenueBonusPercent: 0,
+    isUnlocked: true,
+    unlockCost: 0,
+    icon: '🏬',
+    managerId: 'emp-1',
+    rating: 4.8
+  },
+  {
+    id: 'branch-thaodien',
+    name: 'Chi Nhánh Thảo Điền Boutique',
+    cityId: 'city-hcm',
+    cityName: 'TP. Hồ Chí Minh',
+    district: 'Khu Nhà Giàu Thảo Điền, TP. Thủ Đức',
+    dailyRent: 120000,
+    revenueBonusPercent: 35,
+    isUnlocked: false,
+    unlockCost: 2000000,
+    icon: '✨',
+    rating: 4.9
+  },
+  {
+    id: 'branch-hoankiem',
+    name: 'Flagship Hoàn Kiếm Hà Nội',
+    cityId: 'city-hanoi',
+    cityName: 'Hà Nội',
+    district: 'Phố Cổ Hoàn Kiếm, Thủ Đô Hà Nội',
+    dailyRent: 220000,
+    revenueBonusPercent: 75,
+    isUnlocked: false,
+    unlockCost: 3500000,
+    icon: '👑',
+    rating: 5.0
+  },
+  {
+    id: 'branch-danang',
+    name: 'Boutique Biển Đà Nẵng',
+    cityId: 'city-danang',
+    cityName: 'Đà Nẵng',
+    district: 'Bạch Đằng Ven Sông Hàn, Đà Nẵng',
+    dailyRent: 80000,
+    revenueBonusPercent: 30,
+    isUnlocked: false,
+    unlockCost: 1800000,
+    icon: '🌊',
+    rating: 4.7
+  }
+];
+
 export const INITIAL_LOOKBOOK: LookbookOutfit[] = [
   {
     id: 'lookbook-y2k',
@@ -169,39 +389,6 @@ export const INITIAL_LOOKBOOK: LookbookOutfit[] = [
     bonusText: 'Thu hút khách hàng VIP & tăng 25% hóa đơn trung bình',
     isCompleted: false,
     expReward: 250
-  }
-];
-
-export const INITIAL_BRANCHES: BranchStore[] = [
-  {
-    id: 'branch-main',
-    name: 'Tiệm Trụ Sở Chính (Quận 1)',
-    district: 'Phố Đi Bộ Nguyễn Huệ, TP.HCM',
-    dailyRent: 0,
-    revenueBonusPercent: 0,
-    isUnlocked: true,
-    unlockCost: 0,
-    icon: '🏬'
-  },
-  {
-    id: 'branch-thaodien',
-    name: 'Chi Nhánh Thảo Điền Boutique',
-    district: 'Khu Nhà Giàu Thảo Điền, TP. Thủ Đức',
-    dailyRent: 150000,
-    revenueBonusPercent: 40,
-    isUnlocked: false,
-    unlockCost: 2500000,
-    icon: '✨'
-  },
-  {
-    id: 'branch-hoankiem',
-    name: 'Flagship Hoàn Kiếm Hà Nội',
-    district: 'Phố Cổ Hoàn Kiếm, Thủ Đô Hà Nội',
-    dailyRent: 300000,
-    revenueBonusPercent: 90,
-    isUnlocked: false,
-    unlockCost: 6000000,
-    icon: '👑'
   }
 ];
 
@@ -224,5 +411,24 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
     content: 'Phòng thử đồ gương LED ở tiệm sống ảo đỉnh chóp! Nhân viên tư vấn phối đồ cực có gu nữa chứ 🥰',
     likes: 856,
     timestamp: '5 giờ trước'
+  }
+];
+
+export const INITIAL_ADVISOR_INSIGHTS: BusinessAdvisorInsight[] = [
+  {
+    id: 'insight-1',
+    type: 'opportunity',
+    title: 'Tối Ưu Phân Bổ Hàng Kho & Kệ Bán',
+    description: 'Nhiều khách hàng thích mẫu Baby Tee nhưng thường xuyên hết size M trên kệ bán lẻ.',
+    rootCause: 'Hàng vẫn còn trong kho phía sau nhưng chưa được nhân viên kho vận chuyển lên kệ kịp thời.',
+    recommendation: 'Chỉ định nhân viên bổ sung kệ hàng thường xuyên hoặc nhấn "Đưa tất cả lên kệ".'
+  },
+  {
+    id: 'insight-2',
+    type: 'warning',
+    title: 'Giữ Vệ Sinh Phòng Thử Đồ & Sàn Shop',
+    description: 'Độ sạch sẽ cửa hàng quyết định trực tiếp tới tỷ lệ khách hàng để lại đánh giá 5 sao.',
+    rootCause: 'Lượng khách vào đông làm sàn và phòng thử nhanh bừa bộn.',
+    recommendation: 'Duy trì ca trực của Nhân Viên Vệ Sinh hoặc chủ động quét dọn khi độ sạch dưới 60%.'
   }
 ];

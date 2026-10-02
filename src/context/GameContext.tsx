@@ -4,20 +4,41 @@ import type {
   GameState, 
   Customer, 
   PurchaseOrder, 
-  ReturnExchange, 
-  OnlineOrder 
+  OnlineOrder,
+  StaffRole,
+  WorkShift,
+  BusinessAdvisorInsight,
+  Employee,
+  CustomerReview
 } from '../types/game';
 import { 
   INITIAL_STYLES, 
   INITIAL_SUPPLIERS, 
   INITIAL_LOOKBOOK, 
   INITIAL_BRANCHES, 
-  INITIAL_SOCIAL_POSTS 
+  INITIAL_SOCIAL_POSTS,
+  INITIAL_EMPLOYEES,
+  INITIAL_REVIEWS,
+  INITIAL_ADVISOR_INSIGHTS
 } from '../data/fashionCatalog';
 import { sound } from '../utils/sound';
-import { saveGameState, loadGameState, clearGameState } from '../utils/saveManager';
+import { 
+  saveGameState, 
+  loadGameState, 
+  clearGameState, 
+  setActiveSlotId 
+} from '../utils/saveManager';
 
-export type ActiveTabType = 'shop' | 'inventory' | 'procurement' | 'orders' | 'lookbook' | 'upgrades' | 'branches';
+export type ActiveTabType = 
+  | 'shop' 
+  | 'inventory' 
+  | 'procurement' 
+  | 'staff' 
+  | 'reviews' 
+  | 'map' 
+  | 'orders' 
+  | 'lookbook' 
+  | 'upgrades';
 
 interface GameContextType {
   state: GameState;
@@ -31,21 +52,36 @@ interface GameContextType {
   serveCustomer: (customerId: string) => void;
   rushFitting: () => void;
   rushCheckout: () => void;
+  sweepFloor: () => void;
   // Returns & Online Orders
   resolveReturn: (returnId: string, approve: boolean) => void;
   speedUpOnlineOrder: (orderId: string) => void;
+  // HR & Employees
+  hireEmployee: (role: StaffRole, shift: WorkShift) => void;
+  fireEmployee: (empId: string) => void;
+  trainEmployee: (empId: string) => void;
+  changeEmployeeShift: (empId: string, newShift: WorkShift) => void;
+  // Customer Reviews & Merchant Replies
+  replyToReview: (reviewId: string, replyType: 'thank' | 'apologize' | 'voucher', note: string) => void;
   // Upgrades & Branches
   upgradeShop: (upgradeKey: keyof GameState['upgrades']) => void;
   unlockBranch: (branchId: string) => void;
+  setActiveBranch: (branchId: string) => void;
   claimLookbookOutfit: (lookbookId: string) => void;
-  // Day Cycle & Utilities
+  // Day Cycle & Persistence
   startNextDay: () => void;
   toggleSound: () => void;
   isSoundEnabled: boolean;
   isDaySummaryOpen: boolean;
   closeDaySummary: () => void;
+  isAdvisorOpen: boolean;
+  setIsAdvisorOpen: (open: boolean) => void;
+  isSaveModalOpen: boolean;
+  setIsSaveModalOpen: (open: boolean) => void;
+  switchSlot: (slotId: string) => void;
+  manualSave: () => void;
   resetGame: () => void;
-  addFloatingNumber: (text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order', x?: number, y?: number) => void;
+  addFloatingNumber: (text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order' | 'clean', x?: number, y?: number) => void;
 }
 
 const INITIAL_GAME_STATE: GameState = {
@@ -58,15 +94,21 @@ const INITIAL_GAME_STATE: GameState = {
   dayTime: 0,
   isDayRunning: true,
 
+  cleanliness: 95,
+  trafficMultiplier: 1.0,
+
   styles: INITIAL_STYLES,
   suppliers: INITIAL_SUPPLIERS,
   purchaseOrders: [],
   customers: [],
+  employees: INITIAL_EMPLOYEES,
+  reviews: INITIAL_REVIEWS,
   returnRequests: [],
   onlineOrders: [],
   lookbookOutfits: INITIAL_LOOKBOOK,
   socialPosts: INITIAL_SOCIAL_POSTS,
   branches: INITIAL_BRANCHES,
+  activeBranchId: 'branch-main',
 
   upgrades: {
     fittingRooms: {
@@ -151,13 +193,17 @@ const INITIAL_GAME_STATE: GameState = {
   currentDayStats: {
     revenue: 0,
     cost: 0,
+    payroll: 0,
+    rent: 0,
     profit: 0,
     customersServed: 0,
     customersLost: 0,
     onlineOrdersCompleted: 0,
-    returnsProcessed: 0
+    returnsProcessed: 0,
+    averageSatisfaction: 90
   },
 
+  advisorInsights: INITIAL_ADVISOR_INSIGHTS,
   floatingNumbers: []
 };
 
@@ -192,11 +238,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeTab, setActiveTab] = useState<ActiveTabType>('shop');
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isDaySummaryOpen, setIsDaySummaryOpen] = useState(false);
+  const [isAdvisorOpen, setIsAdvisorOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Auto-save on state change
+  // Auto-save on significant updates
   useEffect(() => {
     saveGameState(state);
   }, [state]);
@@ -207,7 +255,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (sound.enabled) sound.playPop();
   };
 
-  const addFloatingNumber = useCallback((text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order', x = 50, y = 50) => {
+  const addFloatingNumber = useCallback((text: string, type: 'money' | 'rep' | 'heart' | 'sad' | 'order' | 'clean', x = 50, y = 50) => {
     const newId = 'float-' + Date.now() + '-' + Math.random();
     setState(prev => ({
       ...prev,
@@ -222,7 +270,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 1500);
   }, []);
 
-  // Move stock from backroom to sales floor rack for a specific SKU
+  // Quick manual cleaning of floor
+  const sweepFloor = useCallback(() => {
+    setState(prev => {
+      sound.playPop();
+      addFloatingNumber('✨ Quét dọn sạch bóng!', 'clean');
+      return {
+        ...prev,
+        cleanliness: Math.min(100, prev.cleanliness + 25)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Replenish stock to sales floor
   const replenishVariantToFloor = useCallback((styleId: string, variantId: string, amount: number) => {
     setState(prev => {
       const style = prev.styles[styleId];
@@ -254,7 +314,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Replenish all variants of a style from backroom to floor
   const replenishAllStyleToFloor = useCallback((styleId: string) => {
     setState(prev => {
       const style = prev.styles[styleId];
@@ -287,7 +346,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Order goods from supplier (Procurement PO)
+  // Order goods from supplier
   const createPurchaseOrder = useCallback((styleId: string, variantId: string, quantity: number) => {
     setState(prev => {
       const style = prev.styles[styleId];
@@ -298,7 +357,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const supplier = prev.suppliers[style.supplierId];
       const totalCost = variant.costPrice * quantity;
 
-      if (prev.cash < totalCost) return prev; // Not enough money
+      if (prev.cash < totalCost) return prev;
 
       sound.playPop();
       const newOrder: PurchaseOrder = {
@@ -328,7 +387,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Serve a customer manually (Stylist assistance)
+  // Serve a customer
   const serveCustomer = useCallback((customerId: string) => {
     setState(prev => {
       const idx = prev.customers.findIndex(c => c.id === customerId);
@@ -368,7 +427,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Rush fitting rooms
+  // Rush fitting
   const rushFitting = useCallback(() => {
     setState(prev => {
       let boosted = false;
@@ -400,7 +459,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Resolve customer return request
+  // Customer Return Resolution
   const resolveReturn = useCallback((returnId: string, approve: boolean) => {
     setState(prev => {
       const ret = prev.returnRequests.find(r => r.id === returnId);
@@ -425,7 +484,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [addFloatingNumber]);
 
-  // Speed up online order packaging
+  // Online Orders
   const speedUpOnlineOrder = useCallback((orderId: string) => {
     setState(prev => {
       sound.playPop();
@@ -433,7 +492,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         onlineOrders: prev.onlineOrders.map(o => {
           if (o.id === orderId) {
-            return { ...o, progress: Math.min(100, o.progress + 40) };
+            return { ...o, progress: Math.min(100, o.progress + 45) };
           }
           return o;
         })
@@ -441,7 +500,102 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Upgrade shop facility
+  // HR / Staff Management
+  const hireEmployee = useCallback((role: StaffRole, shift: WorkShift) => {
+    setState(prev => {
+      const roleLabels: Record<StaffRole, { label: string; wage: number; avatar: string }> = {
+        manager: { label: 'Cửa Hàng Trưởng (Store Manager)', wage: 50000, avatar: '👩‍💼' },
+        sales: { label: 'Stylist Tư Vấn Bán Lẻ', wage: 28000, avatar: '💁‍♀️' },
+        cashier: { label: 'Thu Ngân Quầy POS', wage: 25000, avatar: '🧑‍💻' },
+        stock: { label: 'Nhân Viên Kho Vận & Tiếp Hàng', wage: 24000, avatar: '📦' },
+        fitting: { label: 'Trợ Lý Phòng Thử Đồ', wage: 22000, avatar: '🪞' },
+        cleaning: { label: 'Nhân Viên Vệ Sinh Sàn & Gương', wage: 20000, avatar: '🧹' }
+      };
+
+      const info = roleLabels[role];
+      const hiringFee = info.wage * 2;
+      if (prev.cash < hiringFee) return prev;
+
+      const randomName = CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)];
+      const newEmp: Employee = {
+        id: 'emp-' + Date.now(),
+        name: randomName,
+        avatar: info.avatar,
+        role,
+        roleLabel: info.label,
+        wagePerDay: info.wage,
+        skillLevel: 2,
+        morale: 90,
+        energy: 90,
+        stress: 15,
+        shift,
+        branchId: prev.activeBranchId
+      };
+
+      sound.playPop();
+      return {
+        ...prev,
+        cash: prev.cash - hiringFee,
+        employees: [...prev.employees, newEmp]
+      };
+    });
+  }, []);
+
+  const fireEmployee = useCallback((empId: string) => {
+    setState(prev => ({
+      ...prev,
+      employees: prev.employees.filter(e => e.id !== empId)
+    }));
+  }, []);
+
+  const trainEmployee = useCallback((empId: string) => {
+    setState(prev => {
+      const emp = prev.employees.find(e => e.id === empId);
+      if (!emp || emp.skillLevel >= 5) return prev;
+      const trainCost = emp.wagePerDay * 3;
+      if (prev.cash < trainCost) return prev;
+
+      sound.playLevelUp();
+      return {
+        ...prev,
+        cash: prev.cash - trainCost,
+        employees: prev.employees.map(e => e.id === empId ? {
+          ...e,
+          skillLevel: e.skillLevel + 1,
+          morale: Math.min(100, e.morale + 15),
+          stress: Math.max(0, e.stress - 10)
+        } : e)
+      };
+    });
+  }, []);
+
+  const changeEmployeeShift = useCallback((empId: string, newShift: WorkShift) => {
+    setState(prev => ({
+      ...prev,
+      employees: prev.employees.map(e => e.id === empId ? { ...e, shift: newShift } : e)
+    }));
+  }, []);
+
+  // Customer Reviews & Merchant Replies
+  const replyToReview = useCallback((reviewId: string, replyType: 'thank' | 'apologize' | 'voucher', note: string) => {
+    setState(prev => {
+      sound.playPop();
+      addFloatingNumber('+20 EXP Phản Hồi', 'rep');
+
+      return {
+        ...prev,
+        reputationExp: prev.reputationExp + 20,
+        reviews: prev.reviews.map(r => r.id === reviewId ? {
+          ...r,
+          replied: true,
+          replyType,
+          replyNote: note
+        } : r)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Shop Upgrades
   const upgradeShop = useCallback((upgradeKey: keyof GameState['upgrades']) => {
     setState(prev => {
       const item = prev.upgrades[upgradeKey];
@@ -492,6 +646,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
+  const setActiveBranch = (branchId: string) => {
+    setState(prev => ({ ...prev, activeBranchId: branchId }));
+  };
+
   // Claim lookbook combo reward
   const claimLookbookOutfit = useCallback((lookbookId: string) => {
     setState(prev => {
@@ -513,30 +671,102 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Start next business day
+  // Start next business day & reconcile financial P&L
   const startNextDay = useCallback(() => {
     setIsDaySummaryOpen(false);
     sound.playBell();
-    setState(prev => ({
-      ...prev,
-      day: prev.day + 1,
-      dayTime: 0,
-      isDayRunning: true,
-      customers: [],
-      currentDayStats: {
-        revenue: 0,
-        cost: 0,
-        profit: 0,
-        customersServed: 0,
-        customersLost: 0,
-        onlineOrdersCompleted: 0,
-        returnsProcessed: 0
+
+    setState(prev => {
+      // Calculate daily payroll and active rent
+      const totalDailyPayroll = prev.employees.reduce((sum, e) => sum + e.wagePerDay, 0);
+      const totalDailyRent = prev.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.dailyRent, 0);
+
+      // Diagnostic Business Advisor Generator
+      const newInsights: BusinessAdvisorInsight[] = [];
+      const stats = prev.currentDayStats;
+
+      if (stats.customersLost > 3) {
+        newInsights.push({
+          id: 'insight-lost-' + Date.now(),
+          type: 'warning',
+          title: 'Khách Hàng Bỏ Đi Do Hết Hàng Hoặc Chờ Quá Lâu',
+          description: `Có ${stats.customersLost} khách đã rời tiệm trong ngày hôm nay mà không mua được hàng.`,
+          rootCause: 'Kệ hàng thiếu size chính xác hoặc phòng thử/quầy thu ngân bị quá tải.',
+          recommendation: 'Bổ sung nhân viên quầy POS hoặc đặt thêm hàng sỉ các size bán chạy.'
+        });
       }
-    }));
+
+      if (prev.cleanliness < 70) {
+        newInsights.push({
+          id: 'insight-clean-' + Date.now(),
+          type: 'warning',
+          title: 'Độ Vệ Sinh Sàn Cần Được Cải Thiện',
+          description: `Độ sạch sẽ cửa hàng hiện ở mức ${prev.cleanliness}%, làm giảm tỷ lệ đánh giá 5 sao.`,
+          rootCause: 'Lưu lượng khách lớn nhưng chưa có đủ nhân viên vệ sinh dọn dẹp.',
+          recommendation: 'Thuê thêm Nhân Viên Vệ Sinh hoặc chủ động dùng nút Quét Dọn Sàn.'
+        });
+      }
+
+      if (stats.profit > 500000) {
+        newInsights.push({
+          id: 'insight-profit-' + Date.now(),
+          type: 'success',
+          title: 'Lợi Nhuận Bùng Nổ! Thời Điểm Mở Rộng',
+          description: `Lợi nhuận ròng đạt ${stats.profit.toLocaleString('vi-VN')}đ, dòng tiền dồi dào.`,
+          rootCause: 'Sự kết hợp ăn ý giữa ma trận hàng hóa đủ size và nhân viên phục vụ tận tình.',
+          recommendation: 'Tận dụng vốn để mở thêm chi nhánh mới trên Bản Đồ Việt Nam.'
+        });
+      }
+
+      return {
+        ...prev,
+        day: prev.day + 1,
+        dayTime: 0,
+        isDayRunning: true,
+        cash: Math.max(0, prev.cash - (totalDailyPayroll + totalDailyRent)),
+        customers: [],
+        yesterdayStats: { ...prev.currentDayStats, payroll: totalDailyPayroll, rent: totalDailyRent },
+        advisorInsights: newInsights.length > 0 ? newInsights : prev.advisorInsights,
+        currentDayStats: {
+          revenue: 0,
+          cost: 0,
+          payroll: totalDailyPayroll,
+          rent: totalDailyRent,
+          profit: 0,
+          customersServed: 0,
+          customersLost: 0,
+          onlineOrdersCompleted: 0,
+          returnsProcessed: 0,
+          averageSatisfaction: 90
+        }
+      };
+    });
   }, []);
 
   const closeDaySummary = () => {
     setIsDaySummaryOpen(false);
+  };
+
+  const manualSave = () => {
+    saveGameState(state);
+    sound.playPop();
+    addFloatingNumber('💾 Đã lưu dữ liệu!', 'clean');
+  };
+
+  const switchSlot = (slotId: string) => {
+    setActiveSlotId(slotId);
+    const loaded = loadGameState(slotId);
+    if (loaded && loaded.styles) {
+      setState({
+        ...INITIAL_GAME_STATE,
+        ...loaded,
+        isDayRunning: true,
+        floatingNumbers: []
+      });
+    } else {
+      setState(INITIAL_GAME_STATE);
+    }
+    sound.playBell();
   };
 
   const resetGame = () => {
@@ -550,7 +780,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const current = stateRef.current;
       if (!current.isDayRunning) return;
 
-      // 1. Advance day timer (60s = 1 business day)
+      // 1. Advance day timer
       const nextDayTime = current.dayTime + 1;
       if (nextDayTime >= 60) {
         sound.playLevelUp();
@@ -568,13 +798,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // 2. Process Purchase Orders Inbound
+      // 2. Cleanliness Logic (Traffic reduces, cleaners restore)
+      let nextCleanliness = current.cleanliness;
+      const cleanersOnShift = current.employees.filter(e => e.role === 'cleaning');
+      if (current.customers.length > 0 && Math.random() < 0.2) {
+        nextCleanliness = Math.max(10, nextCleanliness - 1);
+      }
+      if (cleanersOnShift.length > 0 && nextCleanliness < 100 && Math.random() < 0.3) {
+        nextCleanliness = Math.min(100, nextCleanliness + cleanersOnShift.length * 2);
+      }
+
+      // 3. Purchase Orders Inbound
       let updatedStyles = { ...current.styles };
       let remainingPOs: PurchaseOrder[] = [];
 
       for (const po of current.purchaseOrders) {
         if (po.secondsRemaining <= 1) {
-          // Delivered to backroom!
           const style = updatedStyles[po.styleId];
           if (style) {
             const updatedVariants = style.variants.map(v => {
@@ -601,7 +840,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 3. Process Omnichannel Online Orders
+      // 4. Online Orders
       let nextOnlineOrders: OnlineOrder[] = [];
       let onlineOrderCashEarned = 0;
       const deliverySpeedBonus = current.upgrades.deliverySpeed.level * 10;
@@ -620,14 +859,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Randomly spawn new online order if delivery upgrade unlocked
+      // Spawn new online order
       if (current.upgrades.deliverySpeed.level > 0 && nextOnlineOrders.length < 3 && Math.random() < 0.25) {
         const styleKeys = Object.keys(updatedStyles);
         const randomStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
         const randomVar = randomStyle.variants[Math.floor(Math.random() * randomStyle.variants.length)];
         
         if (randomVar && (randomVar.floorStock > 0 || randomVar.backroomStock > 0)) {
-          // Reserve 1 item
           if (randomVar.floorStock > 0) randomVar.floorStock -= 1;
           else randomVar.backroomStock -= 1;
 
@@ -644,38 +882,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 4. Random return / exchange request
-      let nextReturns = [...current.returnRequests];
-      if (nextReturns.length < 2 && Math.random() < 0.08) {
-        const styleKeys = Object.keys(updatedStyles);
-        const randomStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
-        const reasons: ReturnExchange['reason'][] = ['wrong_size', 'color_mismatch', 'style_change'];
-        const chosenReason = reasons[Math.floor(Math.random() * reasons.length)];
-        const reasonLabels = {
-          wrong_size: 'Mặc bị chật size, muốn đổi size lớn hơn',
-          color_mismatch: 'Màu thực tế không hợp da, xin hoàn tiền',
-          style_change: 'Đổi ý sang phong cách khác'
-        };
+      // 5. Customer Traffic Spawning (Influenced by cleanliness, manager, reviews)
+      const avgReviewRating = current.reviews.length > 0 
+        ? current.reviews.reduce((sum, r) => sum + r.stars, 0) / current.reviews.length 
+        : 4.8;
+      
+      const reviewModifier = avgReviewRating >= 4.5 ? 1.25 : avgReviewRating >= 3.5 ? 1.0 : 0.75;
+      const cleanlinessModifier = nextCleanliness >= 80 ? 1.15 : nextCleanliness < 50 ? 0.7 : 0.95;
+      const manager = current.employees.find(e => e.role === 'manager');
+      const managerBonus = manager ? 1 + (manager.skillLevel * 0.05) : 0.95;
 
-        nextReturns.push({
-          id: 'RET-' + Date.now(),
-          customerName: CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
-          customerAvatar: CUSTOMER_AVATARS[Math.floor(Math.random() * CUSTOMER_AVATARS.length)],
-          styleName: randomStyle.name,
-          variantDesc: `Hàng mới mua hôm qua`,
-          reason: chosenReason,
-          reasonText: reasonLabels[chosenReason],
-          refundAmount: randomStyle.basePrice,
-          state: 'pending'
-        });
-      }
+      const dynamicTrafficRate = (0.4 + (current.reputationStars * 0.08) + (current.upgrades.marketing.level * 0.1)) 
+        * reviewModifier 
+        * cleanlinessModifier 
+        * managerBonus;
 
-      // 5. Customer Traffic Spawning
       const maxCustomersInShop = 3 + current.upgrades.shopSpace.level * 2;
       let nextCustomers = [...current.customers];
 
-      const spawnChance = 0.45 + (current.reputationStars * 0.08) + (current.upgrades.marketing.level * 0.1);
-      if (nextCustomers.length < maxCustomersInShop && Math.random() < spawnChance) {
+      if (nextCustomers.length < maxCustomersInShop && Math.random() < dynamicTrafficRate) {
         const styleKeys = Object.keys(updatedStyles);
         const chosenStyle = updatedStyles[styleKeys[Math.floor(Math.random() * styleKeys.length)]];
         const chosenVar = chosenStyle.variants[Math.floor(Math.random() * chosenStyle.variants.length)];
@@ -704,22 +929,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 6. Process Customer Micro-loop
-      const fittingSpeed = 16 + current.upgrades.fittingRooms.level * 9;
-      const checkoutSpeed = 22 + current.upgrades.posCounter.level * 11;
-      const staffAutoSkill = current.upgrades.staffAuto.level;
+      const fittingAssistants = current.employees.filter(e => e.role === 'fitting');
+      const cashiers = current.employees.filter(e => e.role === 'cashier');
+      const fittingSpeed = 16 + current.upgrades.fittingRooms.level * 8 + (fittingAssistants.length * 6);
+      const checkoutSpeed = 22 + current.upgrades.posCounter.level * 10 + (cashiers.length * 8);
 
       let floorSalesCash = 0;
       let expEarned = 0;
       let servedCount = 0;
       let lostCount = 0;
+      let newReviews: CustomerReview[] = [];
 
       nextCustomers = nextCustomers.map(cust => {
         let updated = { ...cust };
-
-        // Staff auto patience assist
-        if (staffAutoSkill > 0 && updated.patience < 40) {
-          updated.patience = Math.min(100, updated.patience + staffAutoSkill * 6);
-        }
 
         switch (updated.state) {
           case 'entering':
@@ -731,17 +953,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (style) {
               const matchedVar = style.variants.find(v => v.id === updated.cartVariantId);
               if (matchedVar && matchedVar.floorStock > 0) {
-                // Exact SKU found on floor!
                 matchedVar.floorStock -= 1;
                 matchedVar.salesCount += 1;
                 updated.state = 'fitting';
                 updated.stateProgress = 10;
               } else if (matchedVar && matchedVar.backroomStock > 0) {
-                // Waiting for staff to fetch from backroom
                 updated.patience -= 6;
               } else {
-                // Completely out of stock
-                updated.patience -= 20;
+                updated.patience -= 22;
               }
             }
             break;
@@ -753,7 +972,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               updated.state = 'checkout';
               updated.stateProgress = 0;
             } else {
-              updated.patience -= 2;
+              updated.patience -= (nextCleanliness < 60 ? 4 : 2);
             }
             break;
 
@@ -778,7 +997,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return updated;
       });
 
-      // 7. Resolve finished customers
+      // 7. Resolve finished customers & Reviews Generation
       const remainingCustomers: Customer[] = [];
       const branchBonus = current.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.revenueBonusPercent, 0) / 100;
 
@@ -792,10 +1011,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           servedCount += 1;
           sound.playCash();
           addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ`, 'money');
+
+          // Chance to leave a 5-star review
+          if (Math.random() < 0.2) {
+            newReviews.push({
+              id: 'rev-' + Date.now() + '-' + Math.random(),
+              customerName: cust.name,
+              customerAvatar: cust.avatar,
+              stars: 5,
+              category: 'product',
+              comment: `Đồ đẹp chuẩn form, nhân viên thân thiện và shop siêu sạch sẽ! Rất hài lòng ⭐⭐⭐⭐⭐`,
+              timestamp: 'Vừa xong',
+              replied: false
+            });
+          }
         } else if (cust.state === 'angry') {
           lostCount += 1;
           sound.playAngry();
-          addFloatingNumber('💔 Khách hết kiên nhẫn!', 'sad');
+          addFloatingNumber('💔 Khách giận bỏ về!', 'sad');
+
+          // Chance to leave negative review
+          if (Math.random() < 0.45) {
+            newReviews.push({
+              id: 'rev-' + Date.now() + '-' + Math.random(),
+              customerName: cust.name,
+              customerAvatar: cust.avatar,
+              stars: Math.random() < 0.5 ? 2 : 1,
+              category: 'queue',
+              comment: `Chờ đợi lâu quá, tìm size thì hết hàng trên kệ. Shop cần bổ sung thêm nhân viên quầy!`,
+              timestamp: 'Vừa xong',
+              replied: false
+            });
+          }
         } else {
           remainingCustomers.push(cust);
         }
@@ -826,13 +1073,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dayTime: nextDayTime,
         cash: prev.cash + totalEarnedThisTick,
         totalEarned: prev.totalEarned + totalEarnedThisTick,
+        cleanliness: nextCleanliness,
+        trafficMultiplier: dynamicTrafficRate,
         reputationExp: nextRepExp,
         reputationStars: nextStars,
         reputationNextExp: nextThreshold,
         styles: updatedStyles,
         purchaseOrders: remainingPOs,
         onlineOrders: nextOnlineOrders,
-        returnRequests: nextReturns,
+        reviews: newReviews.length > 0 ? [...newReviews, ...prev.reviews].slice(0, 20) : prev.reviews,
         customers: remainingCustomers,
         currentDayStats: {
           ...prev.currentDayStats,
@@ -861,16 +1110,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         serveCustomer,
         rushFitting,
         rushCheckout,
+        sweepFloor,
         resolveReturn,
         speedUpOnlineOrder,
+        hireEmployee,
+        fireEmployee,
+        trainEmployee,
+        changeEmployeeShift,
+        replyToReview,
         upgradeShop,
         unlockBranch,
+        setActiveBranch,
         claimLookbookOutfit,
         startNextDay,
         toggleSound,
         isSoundEnabled,
         isDaySummaryOpen,
         closeDaySummary,
+        isAdvisorOpen,
+        setIsAdvisorOpen,
+        isSaveModalOpen,
+        setIsSaveModalOpen,
+        switchSlot,
+        manualSave,
         resetGame,
         addFloatingNumber
       }}

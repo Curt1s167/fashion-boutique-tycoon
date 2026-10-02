@@ -4,7 +4,7 @@ import { Sparkles, Star, Volume2, VolumeX, Coins, Clock, Store, RotateCcw } from
 import { useGame } from '../context/GameContext';
 
 export const Header: React.FC = () => {
-  const { state, toggleSound, isSoundEnabled, resetGame } = useGame();
+  const { state, toggleSound, isSoundEnabled, resetGame, setIsAdvisorOpen, setIsSaveModalOpen } = useGame();
 
   const expPercentage = Math.min(100, (state.reputationExp / state.reputationNextExp) * 100);
   const dayPercentage = Math.min(100, (state.dayTime / 60) * 100);
@@ -113,6 +113,24 @@ export const Header: React.FC = () => {
             <Coins className="w-5 h-5 text-yellow-300 fill-yellow-300 animate-bounceShort" />
             <span>{state.cash.toLocaleString('vi-VN')} đ</span>
           </motion.div>
+
+          <button
+            onClick={() => setIsAdvisorOpen(true)}
+            className="p-2.5 rounded-2xl bg-amber-100 text-amber-700 hover:bg-amber-200 border-2 border-amber-300 transition-colors shadow-xs flex items-center gap-1 text-xs font-bold"
+            title="Cố vấn kinh doanh & Phân tích Tại sao?"
+          >
+            <span className="text-sm">💡</span>
+            <span className="hidden sm:inline">Cố Vấn</span>
+          </button>
+
+          <button
+            onClick={() => setIsSaveModalOpen(true)}
+            className="p-2.5 rounded-2xl bg-pink-100 text-pink-700 hover:bg-pink-200 border-2 border-pink-300 transition-colors shadow-xs flex items-center gap-1 text-xs font-bold"
+            title="Quản lý bản lưu (Save Slots)"
+          >
+            <span className="text-sm">💾</span>
+            <span className="hidden sm:inline">Lưu Game</span>
+          </button>
 
           <button
             onClick={handleReset}

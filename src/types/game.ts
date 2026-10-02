@@ -41,7 +41,7 @@ export interface Supplier {
   name: string;
   specialty: string;
   avatar: string;
-  leadTimeSeconds: number; // Thời gian hàng về
+  leadTimeSeconds: number;
   minOrderQty: number;
   rating: number;
 }
@@ -80,7 +80,7 @@ export interface OnlineOrder {
   variantDesc: string;
   totalAmount: number;
   status: 'packing' | 'shipping' | 'delivered';
-  progress: number; // 0 - 100%
+  progress: number;
 }
 
 export interface LookbookOutfit {
@@ -104,15 +104,71 @@ export interface SocialPost {
   trendBonus?: string;
 }
 
+export type StaffRole = 
+  | 'manager'     // Quản lý cửa hàng (Store Manager)
+  | 'sales'       // Stylist tư vấn bán lẻ (Sales Advisor)
+  | 'cashier'     // Thu ngân quầy POS (Cashier)
+  | 'stock'       // Nhân viên kho vận (Stock Associate)
+  | 'fitting'     // Trợ lý phòng thử đồ (Fitting Room Assistant)
+  | 'cleaning';   // Nhân viên vệ sinh (Cleaning Staff)
+
+export type WorkShift = 'morning' | 'afternoon' | 'evening';
+
+export interface Employee {
+  id: string;
+  name: string;
+  avatar: string;
+  role: StaffRole;
+  roleLabel: string;
+  wagePerDay: number;
+  skillLevel: number; // 1 - 5 sao
+  morale: number;     // 0 - 100%
+  energy: number;     // 0 - 100%
+  stress: number;     // 0 - 100%
+  shift: WorkShift;
+  branchId: string;
+}
+
+export type ReviewCategory = 'product' | 'service' | 'fitting' | 'cleanliness' | 'queue' | 'size';
+
+export interface CustomerReview {
+  id: string;
+  customerName: string;
+  customerAvatar: string;
+  stars: number;
+  category: ReviewCategory;
+  comment: string;
+  timestamp: string;
+  replied: boolean;
+  replyType?: 'thank' | 'apologize' | 'voucher';
+  replyNote?: string;
+}
+
+export interface CityMarketProfile {
+  id: string;
+  cityName: string;
+  region: 'Bắc' | 'Trung' | 'Nam';
+  footTrafficIndex: number; // Chỉ số lưu lượng khách (0.5 - 2.0)
+  rentPerDay: number;
+  avgSpending: number;
+  dominantDemand: string;
+  openCost: number;
+  coordinates: { x: number; y: number }; // Relative position on map (0-100%)
+}
+
 export interface BranchStore {
   id: string;
   name: string;
+  cityId: string;
+  cityName: string;
   district: string;
   dailyRent: number;
   revenueBonusPercent: number;
   isUnlocked: boolean;
   unlockCost: number;
   icon: string;
+  managerId?: string;
+  rating: number;
 }
 
 export type CustomerState = 
@@ -133,10 +189,10 @@ export interface Customer {
   requestedSize: string;
   preferredColor: string;
   budget: number;
-  patience: number; // 0 - 100
+  patience: number;
   maxPatience: number;
   state: CustomerState;
-  stateProgress: number; // 0 - 100
+  stateProgress: number;
   cartVariantId?: string;
   billAmount?: number;
 }
@@ -144,7 +200,7 @@ export interface Customer {
 export interface FloatingNumber {
   id: string;
   text: string;
-  type: 'money' | 'rep' | 'heart' | 'sad' | 'order';
+  type: 'money' | 'rep' | 'heart' | 'sad' | 'order' | 'clean';
   x: number;
   y: number;
 }
@@ -161,14 +217,36 @@ export interface UpgradeItem {
   effect: string;
 }
 
+export interface BusinessAdvisorInsight {
+  id: string;
+  type: 'warning' | 'opportunity' | 'success';
+  title: string;
+  description: string;
+  rootCause: string;
+  recommendation: string;
+}
+
 export interface DayStats {
   revenue: number;
   cost: number;
+  payroll: number;
+  rent: number;
   profit: number;
   customersServed: number;
   customersLost: number;
   onlineOrdersCompleted: number;
   returnsProcessed: number;
+  averageSatisfaction: number;
+}
+
+export interface SaveSlotMetadata {
+  slotId: string;
+  slotName: string;
+  day: number;
+  cash: number;
+  reputationStars: number;
+  branchCount: number;
+  savedAt: number;
 }
 
 export interface GameState {
@@ -178,8 +256,14 @@ export interface GameState {
   reputationExp: number;
   reputationNextExp: number;
   day: number;
-  dayTime: number; // 0 to 60s per business day
+  dayTime: number; // 0 to 60s
   isDayRunning: boolean;
+
+  // Cleanliness of Store Floor & Fitting Rooms (0 - 100%)
+  cleanliness: number;
+
+  // Traffic multiplier calculated from reviews, cleanliness, staff
+  trafficMultiplier: number;
 
   // Catalog & Inventory
   styles: Record<string, ProductStyle>;
@@ -188,6 +272,12 @@ export interface GameState {
 
   // Floor Visitors
   customers: Customer[];
+
+  // HR & Employees
+  employees: Employee[];
+
+  // Customer Reviews & Ratings
+  reviews: CustomerReview[];
 
   // Returns Desk
   returnRequests: ReturnExchange[];
@@ -199,10 +289,11 @@ export interface GameState {
   lookbookOutfits: LookbookOutfit[];
   socialPosts: SocialPost[];
 
-  // Branches
+  // Chain Branches & Vietnam Map
   branches: BranchStore[];
+  activeBranchId: string;
 
-  // Facility Upgrades
+  // Upgrades
   upgrades: {
     fittingRooms: UpgradeItem;
     posCounter: UpgradeItem;
@@ -213,8 +304,12 @@ export interface GameState {
     deliverySpeed: UpgradeItem;
   };
 
-  // Day P&L
+  // Financial Daily P&L & History
   currentDayStats: DayStats;
+  yesterdayStats?: DayStats;
+
+  // Strategic Advisor Insights
+  advisorInsights: BusinessAdvisorInsight[];
 
   // Visual Effects
   floatingNumbers: FloatingNumber[];

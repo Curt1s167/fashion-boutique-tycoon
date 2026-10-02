@@ -4,12 +4,14 @@ import {
   Zap, 
   ShoppingBag, 
   AlertCircle, 
-  HeartHandshake,
-  CheckCircle2,
-  ArrowDownToLine,
-  Undo2,
-  Check,
-  X
+  HeartHandshake, 
+  CheckCircle2, 
+  ArrowDownToLine, 
+  Undo2, 
+  Check, 
+  X,
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 
@@ -19,8 +21,9 @@ export const ShopFloor: React.FC = () => {
     serveCustomer, 
     rushFitting, 
     rushCheckout, 
-    replenishAllStyleToFloor,
+    replenishAllStyleToFloor, 
     resolveReturn,
+    sweepFloor,
     setActiveTab 
   } = useGame();
 
@@ -77,6 +80,55 @@ export const ShopFloor: React.FC = () => {
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Thu ngân nhanh ({checkoutCustomers.length})</span>
           </motion.button>
+        </div>
+      </div>
+
+      {/* Store Cleanliness & Staff On Duty Strip */}
+      <div className="bg-white/90 p-3.5 rounded-2xl border-2 border-slate-200 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🧹</span>
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                <span>Độ sạch sẽ của tiệm:</span>
+                <span className={state.cleanliness >= 80 ? 'text-emerald-600' : state.cleanliness >= 50 ? 'text-amber-600' : 'text-rose-600'}>
+                  {state.cleanliness}%
+                </span>
+                {state.cleanliness < 60 && (
+                  <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                    Bẩn! Giảm review
+                  </span>
+                )}
+              </div>
+              <div className="w-36 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    state.cleanliness >= 80 ? 'bg-emerald-500' : state.cleanliness >= 50 ? 'bg-amber-400' : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${state.cleanliness}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={sweepFloor}
+            className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-heading font-bold flex items-center gap-1 shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Quét dọn tiệm (+25%)</span>
+          </motion.button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setActiveTab('staff')}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>{state.employees.length} Nhân viên đang trực →</span>
+          </button>
         </div>
       </div>
 

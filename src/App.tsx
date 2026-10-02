@@ -6,7 +6,10 @@ import {
   Sparkles, 
   Truck, 
   Globe, 
-  Layers
+  Layers,
+  Users,
+  Star,
+  MapPin
 } from 'lucide-react';
 import { GameProvider, useGame } from './context/GameContext';
 import type { ActiveTabType } from './context/GameContext';
@@ -14,14 +17,21 @@ import { Header } from './components/Header';
 import { ShopFloor } from './components/ShopFloor';
 import { InventoryWholesale } from './components/InventoryWholesale';
 import { ProcurementOrders } from './components/ProcurementOrders';
+import { StaffManagement } from './components/StaffManagement';
+import { CustomerReviews } from './components/CustomerReviews';
+import { VietnamBusinessMap } from './components/VietnamBusinessMap';
 import { OmnichannelDelivery } from './components/OmnichannelDelivery';
 import { FashionFeedLookbook } from './components/FashionFeedLookbook';
 import { ShopUpgrades } from './components/ShopUpgrades';
 import { FloatingMoney } from './components/FloatingMoney';
 import { DaySummaryModal } from './components/DaySummaryModal';
+import { BusinessAdvisorModal } from './components/BusinessAdvisorModal';
+import { SaveSlotModal } from './components/SaveSlotModal';
 
 const GameMain: React.FC = () => {
   const { activeTab, setActiveTab, state } = useGame();
+
+  const unrepliedReviewsCount = state.reviews.filter(r => !r.replied).length;
 
   const tabs: { id: ActiveTabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number }[] = [
     { 
@@ -41,6 +51,24 @@ const GameMain: React.FC = () => {
       label: 'Đặt Hàng Sỉ', 
       icon: Truck, 
       badge: state.purchaseOrders.length > 0 ? state.purchaseOrders.length : undefined 
+    },
+    { 
+      id: 'staff', 
+      label: 'Nhân Sự & Ca', 
+      icon: Users, 
+      badge: state.employees.length 
+    },
+    { 
+      id: 'reviews', 
+      label: 'Đánh Giá Shop', 
+      icon: Star, 
+      badge: unrepliedReviewsCount > 0 ? `${unrepliedReviewsCount} mới` : undefined 
+    },
+    { 
+      id: 'map', 
+      label: 'Bản Đồ Chuỗi', 
+      icon: MapPin, 
+      badge: undefined 
     },
     { 
       id: 'orders', 
@@ -64,14 +92,16 @@ const GameMain: React.FC = () => {
 
   return (
     <div className="min-h-screen boutique-floor flex flex-col pb-24 md:pb-8 selection:bg-pink-300 selection:text-pink-900">
-      {/* Sticky Header with Cash, Day, Stars */}
+      {/* Sticky Header with Cash, Day, Stars, Advisor, Save */}
       <Header />
 
       {/* Floating money / popups */}
       <FloatingMoney />
 
-      {/* Day summary modal */}
+      {/* Modals */}
       <DaySummaryModal />
+      <BusinessAdvisorModal />
+      <SaveSlotModal />
 
       {/* Main Container */}
       <main className="max-w-6xl w-full mx-auto px-4 py-5 flex-1 flex flex-col">
@@ -86,7 +116,7 @@ const GameMain: React.FC = () => {
                 key={tab.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-3.5 py-2 rounded-2xl font-heading font-bold text-xs sm:text-sm flex items-center gap-2 transition-all whitespace-nowrap justify-center ${
+                className={`relative px-3 py-2 rounded-2xl font-heading font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap justify-center ${
                   isActive
                     ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-game-btn'
                     : 'text-slate-600 hover:text-pink-600 hover:bg-pink-50'
@@ -97,8 +127,8 @@ const GameMain: React.FC = () => {
 
                 {/* Badge */}
                 {tab.badge !== undefined && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    tab.badge === 'Mới'
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                    tab.badge.toString().includes('mới') || tab.badge === 'Mới'
                       ? 'bg-amber-400 text-amber-950 animate-bounceShort'
                       : isActive
                       ? 'bg-white/20 text-white'
@@ -151,6 +181,42 @@ const GameMain: React.FC = () => {
               </motion.div>
             )}
 
+            {activeTab === 'staff' && (
+              <motion.div
+                key="staff"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <StaffManagement />
+              </motion.div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <motion.div
+                key="reviews"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <CustomerReviews />
+              </motion.div>
+            )}
+
+            {activeTab === 'map' && (
+              <motion.div
+                key="map"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+              >
+                <VietnamBusinessMap />
+              </motion.div>
+            )}
+
             {activeTab === 'orders' && (
               <motion.div
                 key="orders"
@@ -200,14 +266,14 @@ const GameMain: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-2xl relative transition-all min-w-[54px] ${
+              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-2xl relative transition-all min-w-[50px] ${
                 isActive ? 'text-pink-600 font-bold scale-105' : 'text-slate-400 font-medium'
               }`}
             >
               <div className={`p-1 rounded-xl ${isActive ? 'bg-pink-100' : 'bg-transparent'}`}>
                 <Icon className="w-4 h-4" />
               </div>
-              <span className="text-[10px] font-heading leading-tight truncate">{tab.label}</span>
+              <span className="text-[9px] font-heading leading-tight truncate">{tab.label.split(' ')[0]}</span>
               {tab.badge !== undefined && (
                 <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
               )}

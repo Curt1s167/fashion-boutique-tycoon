@@ -4,7 +4,7 @@ import { Trophy, ArrowRight, DollarSign, Percent, ShoppingCart } from 'lucide-re
 import { useGame } from '../context/GameContext';
 
 export const DaySummaryModal: React.FC = () => {
-  const { state, isDaySummaryOpen, startNextDay } = useGame();
+  const { state, isDaySummaryOpen, startNextDay, setIsAdvisorOpen } = useGame();
 
   if (!isDaySummaryOpen) return null;
 
@@ -34,7 +34,7 @@ export const DaySummaryModal: React.FC = () => {
           </p>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             {/* Revenue */}
             <div className="bg-pink-50 p-3 rounded-2xl border border-pink-200 text-left">
               <span className="text-[10px] font-bold text-pink-600 flex items-center gap-1 mb-1">
@@ -68,13 +68,29 @@ export const DaySummaryModal: React.FC = () => {
             {/* Satisfaction Rate */}
             <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200 text-left">
               <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mb-1">
-                <Percent className="w-3 h-3" /> Khách phục vụ ({customersServed}/{customersServed + customersLost})
+                <Percent className="w-3 h-3" /> Khách phục vụ
               </span>
               <span className="text-sm font-heading font-extrabold text-amber-700">
                 {satisfactionRate}% ({customersServed} người)
               </span>
             </div>
           </div>
+
+          {/* Operational Expenses Notice */}
+          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 text-[11px] text-slate-600 mb-4 flex items-center justify-between">
+            <span>Chi phí lương & mặt bằng ca ngày:</span>
+            <b className="text-rose-600">
+              -{(state.employees.reduce((s, e) => s + e.wagePerDay, 0) + state.branches.filter(b => b.isUnlocked).reduce((s, b) => s + b.dailyRent, 0)).toLocaleString('vi-VN')}đ
+            </b>
+          </div>
+
+          {/* Advisor Button */}
+          <button
+            onClick={() => setIsAdvisorOpen(true)}
+            className="w-full py-2.5 px-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-heading font-bold text-xs flex items-center justify-center gap-1.5 mb-3 transition-colors"
+          >
+            <span>💡 Xem Cố Vấn Phân Tích "Tại Sao?" & Đề Xuất</span>
+          </button>
 
           {/* Next Day Button */}
           <motion.button
