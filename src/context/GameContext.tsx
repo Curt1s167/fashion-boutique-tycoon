@@ -616,7 +616,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalBill = Math.round((cust.billAmount || 180000) * tipMultiplier);
 
       sound.playCash();
-      addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (Đã thu tiền 💳)`, 'money');
+      addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (Đã thu tiền! ⏳ +8s)`, 'money');
 
       let newReviews = [...prev.reviews];
       if (Math.random() < 0.35) {
@@ -641,6 +641,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...prev,
+        dayTime: Math.max(0, prev.dayTime - 8), // Kéo dài thời gian bán hàng trong ngày!
         cash: prev.cash + finalBill,
         totalEarned: prev.totalEarned + finalBill,
         reputationExp: prev.reputationExp + 25,
@@ -1173,7 +1174,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       sound.playCash();
       const methodLabels = { cash: 'Tiền Mặt 💵', card: 'Thẻ Quẹt 💳', qr: 'Mã QR 📱' };
-      addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (${methodLabels[paymentMethod]})`, 'money');
+      addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (${methodLabels[paymentMethod]}! ⏳ +8s)`, 'money');
 
       // 5-star review chance
       const newReviews = [...prev.reviews];
@@ -1204,6 +1205,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...prev,
+        dayTime: Math.max(0, prev.dayTime - 8), // Kéo dài thời gian bán hàng trong ngày!
         cash: prev.cash + finalBill,
         totalEarned: prev.totalEarned + finalBill,
         reputationExp: prev.reputationExp + 30,
@@ -1376,10 +1378,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       sound.playCash();
-      addFloatingNumber(`+${totalRushedCash.toLocaleString('vi-VN')}đ (Thanh toán hết! 💳)`, 'money');
+      addFloatingNumber(`+${totalRushedCash.toLocaleString('vi-VN')}đ (Thanh toán hết! ⏳ +${checkoutCusts.length * 6}s)`, 'money');
 
       return {
         ...prev,
+        dayTime: Math.max(0, prev.dayTime - (checkoutCusts.length * 6)),
         cash: prev.cash + totalRushedCash,
         totalEarned: prev.totalEarned + totalRushedCash,
         reputationExp: prev.reputationExp + checkoutCusts.length * 20,
@@ -1419,21 +1422,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [addFloatingNumber]);
 
-  // Online Orders
+  // Online Orders: player taps to expedite & deliver to collect revenue
   const speedUpOnlineOrder = useCallback((orderId: string) => {
     setState(prev => {
-      sound.playPop();
-      return {
-        ...prev,
-        onlineOrders: prev.onlineOrders.map(o => {
-          if (o.id === orderId) {
-            return { ...o, progress: Math.min(100, o.progress + 45) };
+      const ord = prev.onlineOrders.find(o => o.id === orderId);
+      if (!ord) return prev;
+
+      const nextProg = ord.progress + 45;
+      if (nextProg >= 100) {
+        sound.playCash();
+        addFloatingNumber(`+${ord.totalAmount.toLocaleString('vi-VN')}đ (Đã giao đơn online! ⏳ +6s)`, 'money');
+        return {
+          ...prev,
+          dayTime: Math.max(0, prev.dayTime - 6),
+          cash: prev.cash + ord.totalAmount,
+          totalEarned: prev.totalEarned + ord.totalAmount,
+          onlineOrders: prev.onlineOrders.filter(o => o.id !== orderId),
+          currentDayStats: {
+            ...prev.currentDayStats,
+            revenue: prev.currentDayStats.revenue + ord.totalAmount,
+            profit: prev.currentDayStats.profit + ord.totalAmount,
+            onlineOrdersCompleted: prev.currentDayStats.onlineOrdersCompleted + 1
           }
-          return o;
-        })
-      };
+        };
+      } else {
+        sound.playPop();
+        return {
+          ...prev,
+          onlineOrders: prev.onlineOrders.map(o => o.id === orderId ? { ...o, progress: nextProg } : o)
+        };
+      }
     });
-  }, []);
+  }, [addFloatingNumber]);
 
   // HR / Staff Management
   const hireEmployee = useCallback((role: StaffRole, shift: WorkShift) => {
@@ -1884,23 +1904,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 4. Online Orders
+      // 4. Online Orders (Tiến trình vận chuyển, không tự động cộng tiền thụ động vào ví)
       let nextOnlineOrders: OnlineOrder[] = [];
-      let onlineOrderCashEarned = 0;
       const deliverySpeedBonus = current.upgrades.deliverySpeed.level * 10;
 
       for (const ord of current.onlineOrders) {
-        const nextProgress = ord.progress + (20 + deliverySpeedBonus) * speedMult;
-        if (nextProgress >= 100) {
-          onlineOrderCashEarned += ord.totalAmount;
-          sound.playCash();
-          addFloatingNumber(`+${ord.totalAmount.toLocaleString('vi-VN')}đ (Đơn Online)`, 'order');
-        } else {
-          nextOnlineOrders.push({
-            ...ord,
-            progress: nextProgress
-          });
-        }
+        const nextProgress = Math.min(100, ord.progress + (15 + deliverySpeedBonus) * speedMult);
+        nextOnlineOrders.push({
+          ...ord,
+          progress: nextProgress
+        });
       }
 
       // Spawn new online order
@@ -2013,7 +2026,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fittingSpeed = (12 + current.upgrades.fittingRooms.level * 6 + (fittingAssistants.length * 6)) * speedMult;
       const cashierScanSpeed = (16 + current.upgrades.posCounter.level * 8 + (cashiers.length * 10)) * speedMult;
 
-      let floorSalesCash = 0;
       let expEarned = 0;
       let servedCount = 0;
       let lostCount = 0;
@@ -2125,16 +2137,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           case 'checkout':
-            // If Cashiers are hired, they scan and process payment automatically
+            // Khách xếp hàng tại quầy POS, KHÔNG tự động thanh toán thụ động!
             if (cashiers.length > 0) {
-              updated.stateProgress += cashierScanSpeed;
-              if (updated.stateProgress >= 100) {
-                updated.state = 'satisfied'; // Cashier finishes scanning -> payment credited!
-              } else {
-                updated.patience -= 1 * speedMult;
-              }
+              // Thu ngân quét sẵn sản phẩm và giữ kiên nhẫn cho khách không tụt
+              updated.stateProgress = Math.min(100, updated.stateProgress + cashierScanSpeed);
+              updated.patience = Math.min(100, updated.patience + 2 * speedMult);
             } else {
-              // No cashier hired: customer waits in queue for player POS action
+              // Chưa có thu ngân: khách đợi người chơi thu tiền
               updated.patience -= 1 * speedMult;
             }
             break;
@@ -2153,32 +2162,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 7. Resolve finished customers
       const remainingCustomers: Customer[] = [];
-      const branchBonus = current.branches.filter(b => b.isUnlocked).reduce((sum, b) => sum + b.revenueBonusPercent, 0) / 100;
 
       for (const cust of nextCustomers) {
         if (cust.state === 'satisfied') {
-          // Cashier automated checkout completion
-          const tipMultiplier = 1 + (0.05 * current.upgrades.posCounter.level) + branchBonus;
-          const finalBill = Math.round((cust.billAmount || 180000) * tipMultiplier);
-
-          floorSalesCash += finalBill;
-          expEarned += 25;
-          servedCount += 1;
-          sound.playCash();
-          addFloatingNumber(`+${finalBill.toLocaleString('vi-VN')}đ (Thu ngân)`, 'money');
-
-          if (Math.random() < 0.25) {
-            newReviews.push({
-              id: 'rev-' + Date.now() + '-' + Math.random(),
-              customerName: cust.name,
-              customerAvatar: cust.avatar,
-              stars: 5,
-              category: 'product',
-              comment: `Đồ đẹp chuẩn form, nhân viên thu ngân siêu nhanh và tiệm rất sạch sẽ! ⭐⭐⭐⭐⭐`,
-              timestamp: 'Vừa xong',
-              replied: false
-            });
-          }
+          // Already resolved manually by player POS
+          continue;
         } else if (cust.state === 'angry') {
           lostCount += 1;
           lostSalesVal += cust.billAmount || 0;
@@ -2347,15 +2335,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addFloatingNumber(`⭐ ĐẠT UY TÍN ${nextStars} SAO!`, 'rep');
       }
 
-      const totalEarnedThisTick = floorSalesCash + onlineOrderCashEarned;
-
+      // Tắt hoàn toàn vòng lặp doanh thu thụ động trong interval loop:
+      // Doanh thu và tiền mặt CHỈ ĐƯỢC GHI NHẬN khi người chơi thực hiện thanh toán cho khách!
       setState(prev => ({
         ...prev,
         dayTime: nextDayTime,
         currentInGameMinutes: inGameMinutes,
         dayPhase: currentPhase,
-        cash: prev.cash + totalEarnedThisTick,
-        totalEarned: prev.totalEarned + totalEarnedThisTick,
         cleanliness: nextCleanliness,
         trafficMultiplier: dynamicTrafficRate,
         reputationExp: nextRepExp,
@@ -2370,16 +2356,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         customers: remainingCustomers,
         currentDayStats: {
           ...prev.currentDayStats,
-          revenue: prev.currentDayStats.revenue + totalEarnedThisTick,
-          profit: prev.currentDayStats.profit + totalEarnedThisTick,
           customersServed: totalServedSoFar,
           customersLost: totalLostSoFar,
           lostSalesValue: prev.currentDayStats.lostSalesValue + lostSalesVal,
           pendingCartValue: pendingCartTotal,
           stockoutLostCount: prev.currentDayStats.stockoutLostCount + stockoutLost,
           queueAbandonCount: prev.currentDayStats.queueAbandonCount + queueAbandonLost,
-          conversionRate: conversionRateVal,
-          onlineOrdersCompleted: prev.currentDayStats.onlineOrdersCompleted + (onlineOrderCashEarned > 0 ? 1 : 0)
+          conversionRate: conversionRateVal
         }
       }));
 
