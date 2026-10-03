@@ -36,12 +36,14 @@ import { DesktopSidebars } from './components/desktop/DesktopSidebars';
 import { FashionGachaModal } from './components/modals/FashionGachaModal';
 import { FashionQuizModal } from './components/modals/FashionQuizModal';
 import { SettingsModal } from './components/modals/SettingsModal';
+import { FinanceDeskModal } from './components/FinanceDeskModal';
 
 const GameMain: React.FC = () => {
   const { activeTab, setActiveTab, state } = useGame();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGachaOpen, setIsGachaOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isFinanceOpen, setIsFinanceOpen] = useState(false);
 
   const unrepliedReviewsCount = state.reviews.filter(r => !r.replied).length;
 
@@ -121,6 +123,7 @@ const GameMain: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenGacha={() => setIsGachaOpen(true)}
         onOpenQuiz={() => setIsQuizOpen(true)}
+        onOpenFinance={() => setIsFinanceOpen(true)}
       />
 
       {/* Floating numbers / Money alerts */}
@@ -136,6 +139,7 @@ const GameMain: React.FC = () => {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <FashionGachaModal isOpen={isGachaOpen} onClose={() => setIsGachaOpen(false)} />
       <FashionQuizModal isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
+      <FinanceDeskModal isOpen={isFinanceOpen} onClose={() => setIsFinanceOpen(false)} />
 
       {/* Central Boutique Simulator Container */}
       <main className="max-w-2xl w-full mx-auto px-2 sm:px-4 py-3 sm:py-5 flex-1 flex flex-col z-10">

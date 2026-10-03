@@ -31,7 +31,8 @@ export const ShopFloor: React.FC = () => {
     dropCarriedItem,
     giveCarriedItemToCustomer,
     collectFittingReturn,
-    fulfillFittingSizeRequest
+    fulfillFittingSizeRequest,
+    resolveIncident
   } = useGame();
 
   const fittingCustomers = state.customers.filter(c => c.state === 'fitting');
@@ -172,6 +173,52 @@ export const ShopFloor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 🚨 OPERATIONAL INCIDENTS & SHRINKAGE STRIP (ANTIGRAVITY_MASTER_AUDIT_REAL_STORE_OPERATIONS_PROMPT) */}
+      {state.activeIncidents.filter(i => !i.resolved).length > 0 && (
+        <div className="space-y-2">
+          {state.activeIncidents.filter(i => !i.resolved).map(inc => (
+            <div 
+              key={inc.id}
+              className="stitch-panel-solid p-3 sm:p-3.5 bg-[#fff8f6] border-2 border-[#ffdad6] shadow-[0_3px_0_#ba1a1a] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="text-2xl mt-0.5">⚠️</span>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black uppercase text-[#ba1a1a] bg-[#ffdad6] px-2 py-0.2 rounded-full">
+                      SỰ CỐ VẬN HÀNH
+                    </span>
+                    <h4 className="text-xs sm:text-sm font-heading font-extrabold text-[#2e150e] m-0">
+                      {inc.title}
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-[#534343] mt-0.5 leading-snug">
+                    {inc.description}
+                  </p>
+                  <span className="text-[10px] text-[#7d5637] font-semibold block mt-0.5">
+                    🔍 Chứng cứ: {inc.evidenceText} • {inc.impactText}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                <button
+                  onClick={() => resolveIncident(inc.id)}
+                  disabled={state.cash < inc.costToResolve}
+                  className={`px-3 py-1.5 rounded-xl font-heading font-bold text-xs flex items-center gap-1 transition-all ${
+                    state.cash >= inc.costToResolve
+                      ? 'bg-[#ef6f8e] hover:bg-[#c24c69] text-white border border-[#936451] shadow-xs'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span>Xử lý ({inc.costToResolve.toLocaleString('vi-VN')}₫)</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 1. Player Carry Tray & Store Tasks Strip */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">

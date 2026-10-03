@@ -131,6 +131,10 @@ interface GameContextType {
   trackJourneyGoal: (goalId: string, increment?: number) => void;
   addCash: (amount: number) => void;
   addReputationExp: (amount: number) => void;
+  // Tax & Store Operational Incidents
+  payTaxObligation: (amount: number) => boolean;
+  resolveIncident: (incidentId: string) => void;
+  triggerStoreIncident: (type: 'THEFT_SHRINKAGE' | 'STAFF_LATENESS' | 'DAMAGED_DELIVERY' | 'POS_MALFUNCTION' | 'CUSTOMER_COMPLAINT') => void;
 }
 
 const INITIAL_GAME_STATE: GameState = {
@@ -273,7 +277,40 @@ const INITIAL_GAME_STATE: GameState = {
   completedJourneyGoalIds: [],
   journeyGoalProgress: {},
   week2FocusChoice: undefined,
-  floatingNumbers: []
+  floatingNumbers: [],
+
+  // 🇻🇳 VIETNAM TAX MANAGEMENT (Luật thuế GTGT 10% & TNDN 20% & Luật QLT 0.03%/ngày)
+  taxState: {
+    ruleVersion: 'VN_TAX_2026_V1',
+    vatRate: 0.10,
+    citRate: 0.20,
+    taxableRevenue: 0,
+    taxableProfit: 0,
+    vatPayable: 0,
+    citPayable: 0,
+    totalTaxPaid: 0,
+    overdueDays: 0,
+    penaltyFee: 0,
+    taxDebt: 0,
+    dueDay: 7, // Hạn nộp thuế kỳ 1 vào Ngày 7
+    isAuditWarning: false
+  },
+
+  // 🚨 REAL STORE OPERATIONAL INCIDENTS & SHRINKAGE
+  activeIncidents: [
+    {
+      id: 'inc-01',
+      type: 'THEFT_SHRINKAGE',
+      title: 'Phát hiện lệch tồn kho kiểm kê kệ áo',
+      description: 'Kiểm kê ca sáng phát hiện thiếu hụt 1 áo thun Babytee. Cần trích xuất camera và lập biên bản hao hụt.',
+      severity: 'minor',
+      impactText: 'Hao hụt giá vốn 65.000đ • Ảnh hưởng độ chính xác kho',
+      costToResolve: 65000,
+      evidenceText: 'Camera góc C1 ghi nhận khu vực đông khách thử đồ.',
+      resolved: false,
+      createdAtDay: 1
+    }
+  ]
 };
 
 const CUSTOMER_NAMES = [
@@ -2371,6 +2408,127 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(timer);
   }, [addFloatingNumber]);
 
+  // 🇻🇳 VIETNAM TAX MANAGEMENT (ANTIGRAVITY_MASTER_AUDIT_REAL_STORE_OPERATIONS_PROMPT)
+  const payTaxObligation = useCallback((amount: number): boolean => {
+    let success = false;
+    setState(prev => {
+      const payable = prev.taxState.vatPayable + prev.taxState.citPayable + prev.taxState.penaltyFee;
+      const actualPay = Math.min(amount, Math.min(prev.cash, payable));
+      if (actualPay <= 0) return prev;
+
+      success = true;
+      const remainingPenalty = Math.max(0, prev.taxState.penaltyFee - actualPay);
+      const remainderAfterPenalty = Math.max(0, actualPay - prev.taxState.penaltyFee);
+      const remainingVat = Math.max(0, prev.taxState.vatPayable - remainderAfterPenalty);
+      const remainderAfterVat = Math.max(0, remainderAfterPenalty - prev.taxState.vatPayable);
+      const remainingCit = Math.max(0, prev.taxState.citPayable - remainderAfterVat);
+      const newDebt = remainingPenalty + remainingVat + remainingCit;
+
+      addFloatingNumber(`-${actualPay.toLocaleString('vi-VN')}₫ Nộp thuế`, 'money');
+
+      return {
+        ...prev,
+        cash: prev.cash - actualPay,
+        taxState: {
+          ...prev.taxState,
+          penaltyFee: remainingPenalty,
+          vatPayable: remainingVat,
+          citPayable: remainingCit,
+          totalTaxPaid: prev.taxState.totalTaxPaid + actualPay,
+          taxDebt: newDebt,
+          isAuditWarning: newDebt > 2000000
+        }
+      };
+    });
+    return success;
+  }, [addFloatingNumber]);
+
+  // 🚨 OPERATIONAL INCIDENTS HANDLER
+  const resolveIncident = useCallback((incidentId: string) => {
+    setState(prev => {
+      const target = prev.activeIncidents.find(i => i.id === incidentId);
+      if (!target || target.resolved) return prev;
+
+      if (prev.cash < target.costToResolve) {
+        addFloatingNumber('Thiếu tiền xử lý!', 'sad');
+        return prev;
+      }
+
+      addFloatingNumber(`-${target.costToResolve.toLocaleString('vi-VN')}₫ Xử lý xong`, 'money');
+      addFloatingNumber('Tiệm an toàn ✨', 'clean');
+
+      return {
+        ...prev,
+        cash: prev.cash - target.costToResolve,
+        activeIncidents: prev.activeIncidents.map(inc => 
+          inc.id === incidentId ? { ...inc, resolved: true } : inc
+        )
+      };
+    });
+  }, [addFloatingNumber]);
+
+  const triggerStoreIncident = useCallback((type: 'THEFT_SHRINKAGE' | 'STAFF_LATENESS' | 'DAMAGED_DELIVERY' | 'POS_MALFUNCTION' | 'CUSTOMER_COMPLAINT') => {
+    setState(prev => {
+      const newId = `inc-${Date.now()}`;
+      let title = '';
+      let desc = '';
+      let cost = 100000;
+      let evidence = '';
+
+      switch (type) {
+        case 'THEFT_SHRINKAGE':
+          title = 'Mất trộm hao hụt phụ kiện / túi xách';
+          desc = 'Khu vực quầy trưng bày túi xách phát hiện mất 1 sản phẩm giờ cao điểm.';
+          cost = 150000;
+          evidence = 'Camera phát hiện góc khuất kệ phụ kiện.';
+          break;
+        case 'STAFF_LATENESS':
+          title = 'Nhân viên stylist đi trễ 30 phút';
+          desc = 'Ca chiều thiếu 1 nhân viên tư vấn, hàng đợi thử đồ dồn ứ.';
+          cost = 50000;
+          evidence = 'Máy chấm công vân tay ghi nhận muộn 34 phút.';
+          break;
+        case 'DAMAGED_DELIVERY':
+          title = 'Lô hàng giao bị ướt mép thùng giấy';
+          desc = 'Kiện hàng sỉ chuyển phát nhanh gặp mưa, cần kiểm định kỹ.';
+          cost = 80000;
+          evidence = 'Biên bản đồng kiểm bưu tá giao hàng.';
+          break;
+        case 'POS_MALFUNCTION':
+          title = 'Mất kết nối máy POS quẹt thẻ';
+          desc = 'Thiết bị POS thanh toán ngân hàng chập chờn, cần gọi IT hỗ trợ gấp.';
+          cost = 120000;
+          evidence = 'Lỗi đường truyền viễn thông cổng thanh toán.';
+          break;
+        case 'CUSTOMER_COMPLAINT':
+          title = 'Khách phàn nàn phòng thử đồ bừa bộn';
+          desc = 'Khách VIP phản ánh đồ thử để lộn xộn trong phòng thay đồ.';
+          cost = 60000;
+          evidence = 'Đánh giá 2 sao trên ứng dụng review.';
+          break;
+      }
+
+      return {
+        ...prev,
+        activeIncidents: [
+          {
+            id: newId,
+            type,
+            title,
+            description: desc,
+            severity: 'moderate',
+            impactText: 'Ảnh hưởng trải nghiệm tiệm và chi phí vận hành',
+            costToResolve: cost,
+            evidenceText: evidence,
+            resolved: false,
+            createdAtDay: prev.day
+          },
+          ...prev.activeIncidents
+        ]
+      };
+    });
+  }, []);
+
   return (
     <GameContext.Provider
       value={{
@@ -2435,7 +2593,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectWeek2Focus,
         trackJourneyGoal,
         addCash,
-        addReputationExp
+        addReputationExp,
+        payTaxObligation,
+        resolveIncident,
+        triggerStoreIncident
       }}
     >
       {children}

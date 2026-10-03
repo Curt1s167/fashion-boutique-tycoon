@@ -449,4 +449,45 @@ export interface GameState {
 
   // Visual Effects
   floatingNumbers: FloatingNumber[];
+
+  // 🇻🇳 VIETNAM TAX MANAGEMENT (ANTIGRAVITY_MASTER_AUDIT_REAL_STORE_OPERATIONS_PROMPT)
+  taxState: {
+    ruleVersion: string;
+    vatRate: number; // 0.10 (Luật thuế GTGT)
+    citRate: number; // 0.20 (Luật thuế TNDN)
+    taxableRevenue: number;
+    taxableProfit: number;
+    vatPayable: number;
+    citPayable: number;
+    totalTaxPaid: number;
+    overdueDays: number;
+    penaltyFee: number; // 0.03%/ngày theo Luật Quản Lý Thuế
+    taxDebt: number;
+    dueDay: number;
+    isAuditWarning: boolean;
+  };
+
+  // 🚨 REAL STORE OPERATIONAL INCIDENTS & SHRINKAGE
+  activeIncidents: Array<{
+    id: string;
+    type: 'THEFT_SHRINKAGE' | 'STAFF_LATENESS' | 'DAMAGED_DELIVERY' | 'POS_MALFUNCTION' | 'CUSTOMER_COMPLAINT';
+    title: string;
+    description: string;
+    severity: 'minor' | 'moderate' | 'critical';
+    impactText: string;
+    costToResolve: number;
+    compensationAmount?: number;
+    evidenceText: string;
+    resolved: boolean;
+    createdAtDay: number;
+  }>;
+}
+
+export interface TaxRuleConfig {
+  version: string;
+  effectiveFrom: string;
+  sourceReference: string;
+  vatRate: number;
+  citRate: number;
+  latePenaltyPerDay: number;
 }

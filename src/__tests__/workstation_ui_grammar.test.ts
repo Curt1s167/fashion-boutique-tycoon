@@ -67,6 +67,22 @@ describe('Interactive Workstation UI & Operational Grammar Test Suite', () => {
     completedJourneyGoalIds: [],
     journeyGoalProgress: {},
     floatingNumbers: [],
+    taxState: {
+      ruleVersion: 'VN_TAX_2026_V1',
+      vatRate: 0.10,
+      citRate: 0.20,
+      taxableRevenue: 0,
+      taxableProfit: 0,
+      vatPayable: 0,
+      citPayable: 0,
+      totalTaxPaid: 0,
+      overdueDays: 0,
+      penaltyFee: 0,
+      taxDebt: 0,
+      dueDay: 7,
+      isAuditWarning: false
+    },
+    activeIncidents: []
   });
 
   describe('Operational Grammar: Preparation Table Fulfillment', () => {

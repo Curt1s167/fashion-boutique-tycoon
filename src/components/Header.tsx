@@ -7,12 +7,14 @@ interface HeaderProps {
   onOpenSettings?: () => void;
   onOpenGacha?: () => void;
   onOpenQuiz?: () => void;
+  onOpenFinance?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenGacha,
-  onOpenQuiz
+  onOpenQuiz,
+  onOpenFinance
 }) => {
   const { 
     state, 
@@ -113,6 +115,21 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onOpenQuiz}
             >
               <span className="text-xs">👗</span>
+            </button>
+
+            {/* 5. Finance & Tax Desk button */}
+            <button
+              id="taxBtn"
+              type="button"
+              className={`pbtn relative ${state.taxState.taxDebt > 0 ? 'border-rose-400 bg-rose-50' : ''}`}
+              aria-label="Thuế & Tài Chính"
+              title="Bàn Kế Toán & Nghĩa Vụ Thuế Việt Nam"
+              onClick={onOpenFinance}
+            >
+              <span className="text-xs">🏛️</span>
+              {state.taxState.taxDebt > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+              )}
             </button>
           </div>
 
