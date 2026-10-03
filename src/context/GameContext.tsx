@@ -12,7 +12,8 @@ import type {
   CustomerReview,
   DayPhase,
   PlayerCarryItem,
-  StoreTask
+  StoreTask,
+  BranchHealthStatus
 } from '../types/game';
 import { 
   INITIAL_STYLES, 
@@ -105,6 +106,9 @@ interface GameContextType {
   upgradeShop: (upgradeKey: keyof GameState['upgrades']) => void;
   unlockBranch: (branchId: string) => void;
   setActiveBranch: (branchId: string) => void;
+  restructureBranch: (branchId: string) => void;
+  liquidateBranchStock: (branchId: string) => void;
+  closeBranch: (branchId: string) => void;
   claimLookbookOutfit: (lookbookId: string) => void;
   // Day Cycle & Persistence
   startNextDay: () => void;
@@ -676,6 +680,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const totalVisitors = nextServed + prev.currentDayStats.customersLost;
       const newConversionRate = Math.round((nextServed / Math.max(1, totalVisitors)) * 100);
 
+      const vatAmount = Math.round(finalBill * prev.taxState.vatRate);
+      const updatedTaxableRev = prev.taxState.taxableRevenue + finalBill;
+      const updatedVatPayable = prev.taxState.vatPayable + vatAmount;
+
       return {
         ...prev,
         dayTime: Math.max(0, prev.dayTime - 8), // Kéo dài thời gian bán hàng trong ngày!
@@ -684,6 +692,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reputationExp: prev.reputationExp + 25,
         customers: updatedCustomers,
         reviews: newReviews.slice(0, 30),
+        taxState: {
+          ...prev.taxState,
+          taxableRevenue: updatedTaxableRev,
+          vatPayable: updatedVatPayable,
+          taxDebt: updatedVatPayable + prev.taxState.citPayable + prev.taxState.penaltyFee
+        },
         currentDayStats: {
           ...prev.currentDayStats,
           revenue: prev.currentDayStats.revenue + finalBill,
@@ -1240,6 +1254,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!newGoals.includes('day7_serve_master')) newGoals.push('day7_serve_master');
       if (prev.day === 6 && !newGoals.includes('day6_evening_peak')) newGoals.push('day6_evening_peak');
 
+      const vatAmount = Math.round(finalBill * prev.taxState.vatRate);
+      const updatedTaxableRev = prev.taxState.taxableRevenue + finalBill;
+      const updatedVatPayable = prev.taxState.vatPayable + vatAmount;
+
       return {
         ...prev,
         dayTime: Math.max(0, prev.dayTime - 8), // Kéo dài thời gian bán hàng trong ngày!
@@ -1249,6 +1267,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         customers: updatedCustomers,
         reviews: newReviews.slice(0, 30),
         completedJourneyGoalIds: newGoals,
+        taxState: {
+          ...prev.taxState,
+          taxableRevenue: updatedTaxableRev,
+          vatPayable: updatedVatPayable,
+          taxDebt: updatedVatPayable + prev.taxState.citPayable + prev.taxState.penaltyFee
+        },
         currentDayStats: {
           ...prev.currentDayStats,
           revenue: prev.currentDayStats.revenue + finalBill,
@@ -1647,6 +1671,73 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, activeBranchId: branchId }));
   };
 
+  const restructureBranch = useCallback((branchId: string) => {
+    setState(prev => {
+      const branch = prev.branches.find(b => b.id === branchId);
+      if (!branch || !branch.isUnlocked) return prev;
+      const restructureCost = 50000;
+      if (prev.cash < restructureCost) {
+        addFloatingNumber('Thiếu ngân sách tái cấu trúc!', 'sad');
+        return prev;
+      }
+      sound.playLevelUp();
+      addFloatingNumber('🛠️ Đã tái cấu trúc: Giảm 25% tiền thuê mặt bằng', 'clean');
+      return {
+        ...prev,
+        cash: prev.cash - restructureCost,
+        branches: prev.branches.map(b => b.id === branchId ? {
+          ...b,
+          dailyRent: Math.round(b.dailyRent * 0.75),
+          healthStatus: 'RESTRUCTURING',
+          consecutiveLossDays: 0
+        } : b)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  const liquidateBranchStock = useCallback((branchId: string) => {
+    setState(prev => {
+      const branch = prev.branches.find(b => b.id === branchId);
+      if (!branch || !branch.isUnlocked) return prev;
+      const liquidationCash = 350000;
+      sound.playCash();
+      addFloatingNumber(`+${liquidationCash.toLocaleString('vi-VN')}đ Xả kho thanh lý!`, 'money');
+      return {
+        ...prev,
+        cash: prev.cash + liquidationCash,
+        branches: prev.branches.map(b => b.id === branchId ? {
+          ...b,
+          accumulatedProfit: (b.accumulatedProfit || 0) + liquidationCash,
+          healthStatus: 'HEALTHY',
+          consecutiveLossDays: 0
+        } : b)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  const closeBranch = useCallback((branchId: string) => {
+    setState(prev => {
+      const branch = prev.branches.find(b => b.id === branchId);
+      if (!branch || !branch.isUnlocked || branch.id === 'branch-main') {
+        return prev;
+      }
+      const refundDeposit = Math.round(branch.unlockCost * 0.30);
+      sound.playPop();
+      addFloatingNumber(`Đã đóng chi nhánh, thu hồi ${refundDeposit.toLocaleString('vi-VN')}đ cọc`, 'money');
+      return {
+        ...prev,
+        cash: prev.cash + refundDeposit,
+        activeBranchId: prev.activeBranchId === branchId ? 'branch-main' : prev.activeBranchId,
+        branches: prev.branches.map(b => b.id === branchId ? {
+          ...b,
+          isUnlocked: false,
+          healthStatus: 'CLOSED',
+          consecutiveLossDays: 0
+        } : b)
+      };
+    });
+  }, [addFloatingNumber]);
+
   const addCash = useCallback((amount: number) => {
     setState(prev => ({
       ...prev,
@@ -1762,9 +1853,104 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!newGoals.includes('day7_review_report')) newGoals.push('day7_review_report');
       }
 
+      // Reconcile daily corporate income tax (CIT 20% on audited net profit) & late penalties
+      const auditedNetProfit = Math.max(0, stats.profit);
+      const addedCit = Math.round(auditedNetProfit * prev.taxState.citRate);
+      const nextTaxableProfit = prev.taxState.taxableProfit + auditedNetProfit;
+      const nextCitPayable = prev.taxState.citPayable + addedCit;
+      
+      let nextOverdueDays = prev.taxState.overdueDays;
+      let nextPenaltyFee = prev.taxState.penaltyFee;
+      const currentDayNumber = prev.day + 1;
+
+      // Law on Tax Administration 2019 (Điều 59): 0.03% per day if overdue past dueDay
+      if (currentDayNumber > prev.taxState.dueDay && (prev.taxState.vatPayable + nextCitPayable > 0)) {
+        nextOverdueDays += 1;
+        nextPenaltyFee += Math.round((prev.taxState.vatPayable + nextCitPayable) * 0.0003);
+      }
+      const totalTaxDebt = prev.taxState.vatPayable + nextCitPayable + nextPenaltyFee;
+      const isTaxAuditWarning = totalTaxDebt > 1500000;
+
+      // Dynamic Retail Incidents Generator based on actual store conditions
+      let updatedIncidents = [...prev.activeIncidents];
+      const unresolvedCount = updatedIncidents.filter(i => !i.resolved).length;
+
+      if (unresolvedCount < 3) {
+        // 1. Poor sanitation triggers complaint
+        if (prev.cleanliness < 60 && !updatedIncidents.some(i => i.type === 'CUSTOMER_COMPLAINT' && !i.resolved)) {
+          updatedIncidents.unshift({
+            id: `inc-clean-${Date.now()}`,
+            type: 'CUSTOMER_COMPLAINT',
+            title: 'Khách phàn nàn sàn tiệm và phòng thử chưa sạch sẽ',
+            description: `Vệ sinh sàn tiệm chỉ đạt ${prev.cleanliness}%, khách phản ánh bụi bẩn và đồ thử vương vãi.`,
+            severity: 'moderate',
+            impactText: 'Giảm 15% lưu lượng khách đến khi tổng vệ sinh xong',
+            costToResolve: 60000,
+            evidenceText: 'Phản ánh trực tiếp tại quầy thanh toán.',
+            resolved: false,
+            createdAtDay: currentDayNumber
+          });
+        }
+        // 2. High staff stress or lack of staff triggers lateness/burnout
+        const avgStress = prev.employees.length > 0
+          ? prev.employees.reduce((s, e) => s + e.stress, 0) / prev.employees.length
+          : 0;
+        if ((avgStress > 45 || prev.employees.length === 0) && !updatedIncidents.some(i => i.type === 'STAFF_LATENESS' && !i.resolved)) {
+          updatedIncidents.unshift({
+            id: `inc-late-${Date.now()}`,
+            type: 'STAFF_LATENESS',
+            title: 'Nhân viên stylist kiệt sức & trễ ca sáng',
+            description: 'Áp lực phục vụ khách đông khiến nhân sự đến muộn 40 phút.',
+            severity: 'minor',
+            impactText: 'Tốc độ hỗ trợ khách hàng ca sáng bị suy giảm',
+            costToResolve: 50000,
+            evidenceText: 'Hệ thống điểm danh vân tay ca sáng ghi nhận trễ.',
+            resolved: false,
+            createdAtDay: currentDayNumber
+          });
+        }
+        // 3. High volume without cashier triggers shrinkage/theft
+        const hasCashier = prev.employees.some(e => e.role === 'cashier');
+        if (stats.customersServed > 6 && !hasCashier && !updatedIncidents.some(i => i.type === 'THEFT_SHRINKAGE' && !i.resolved)) {
+          updatedIncidents.unshift({
+            id: `inc-theft-${Date.now()}`,
+            type: 'THEFT_SHRINKAGE',
+            title: 'Hao hụt kiểm kê do thiếu thu ngân chốt cửa',
+            description: 'Lượng khách vào đông nhưng không có nhân viên thu ngân cố định kiểm soát lối ra.',
+            severity: 'moderate',
+            impactText: 'Hao hụt 1 sản phẩm phụ kiện • Giá vốn 95.000đ',
+            costToResolve: 95000,
+            evidenceText: 'Camera an ninh ghi nhận khách mang đồ ra ngoài chưa quét POS.',
+            resolved: false,
+            createdAtDay: currentDayNumber
+          });
+        }
+      }
+
+      // Branch Health Updates
+      const updatedBranches = prev.branches.map(b => {
+        if (!b.isUnlocked) return b;
+        const netProfit = stats.profit;
+        const curLossDays = b.consecutiveLossDays || 0;
+        const nextLossDays = netProfit < 0 ? curLossDays + 1 : 0;
+        let newHealth: BranchHealthStatus = b.healthStatus || 'HEALTHY';
+        if (newHealth !== 'RESTRUCTURING') {
+          if (nextLossDays >= 3) newHealth = 'INSOLVENT';
+          else if (nextLossDays >= 2) newHealth = 'LOSS_MAKING';
+          else if (nextLossDays === 1) newHealth = 'WARNING';
+          else newHealth = 'HEALTHY';
+        }
+        return {
+          ...b,
+          consecutiveLossDays: nextLossDays,
+          healthStatus: newHealth,
+          accumulatedProfit: (b.accumulatedProfit || 0) + netProfit
+        };
+      });
+
       return {
         ...prev,
-        day: prev.day + 1,
+        day: currentDayNumber,
         dayTime: 0,
         isDayRunning: true,
         gameSpeed: 1,
@@ -1775,6 +1961,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         storeTasks: [],
         cash: Math.max(0, prev.cash - (totalDailyPayroll + totalDailyRent)),
         customers: [],
+        branches: updatedBranches,
+        activeIncidents: updatedIncidents,
+        taxState: {
+          ...prev.taxState,
+          taxableProfit: nextTaxableProfit,
+          citPayable: nextCitPayable,
+          overdueDays: nextOverdueDays,
+          penaltyFee: nextPenaltyFee,
+          taxDebt: totalTaxDebt,
+          isAuditWarning: isTaxAuditWarning
+        },
         yesterdayStats: { ...prev.currentDayStats, payroll: totalDailyPayroll, rent: totalDailyRent },
         advisorInsights: newInsights.length > 0 ? newInsights : prev.advisorInsights,
         completedJourneyGoalIds: newGoals,
@@ -1914,30 +2111,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let remainingPOs: PurchaseOrder[] = [];
 
       for (const po of current.purchaseOrders) {
-        if (po.secondsRemaining <= speedMult) {
-          const style = updatedStyles[po.styleId];
-          if (style) {
-            const updatedVariants = style.variants.map(v => {
-              if (v.id === po.variantId) {
-                return {
-                  ...v,
-                  backroomStock: v.backroomStock + po.quantity
-                };
-              }
-              return v;
+        if (po.status === 'shipping') {
+          if (po.secondsRemaining <= speedMult) {
+            remainingPOs.push({
+              ...po,
+              secondsRemaining: 0,
+              status: 'arrived'
             });
-            updatedStyles[po.styleId] = {
-              ...style,
-              variants: updatedVariants
-            };
+            sound.playBell();
+            addFloatingNumber(`📦 Kiện hàng ${po.styleName} đã đến! Chờ kiểm QC`, 'order');
+          } else {
+            remainingPOs.push({
+              ...po,
+              secondsRemaining: po.secondsRemaining - speedMult
+            });
           }
-          sound.playPop();
-          addFloatingNumber(`📦 Đã nhận +${po.quantity} ${po.styleName}`, 'order');
         } else {
-          remainingPOs.push({
-            ...po,
-            secondsRemaining: po.secondsRemaining - speedMult
-          });
+          // Status is 'arrived', awaiting player manual QC inspection
+          remainingPOs.push(po);
         }
       }
 
@@ -2570,6 +2761,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         upgradeShop,
         unlockBranch,
         setActiveBranch,
+        restructureBranch,
+        liquidateBranchStock,
+        closeBranch,
         claimLookbookOutfit,
         startNextDay,
         toggleSound,

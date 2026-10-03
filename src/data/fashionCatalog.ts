@@ -328,7 +328,10 @@ export const INITIAL_BRANCHES: BranchStore[] = [
     unlockCost: 0,
     icon: '🏬',
     managerId: 'emp-1',
-    rating: 4.8
+    rating: 4.8,
+    healthStatus: 'HEALTHY',
+    consecutiveLossDays: 0,
+    accumulatedProfit: 1500000
   },
   {
     id: 'branch-thaodien',
@@ -341,7 +344,10 @@ export const INITIAL_BRANCHES: BranchStore[] = [
     isUnlocked: false,
     unlockCost: 2000000,
     icon: '✨',
-    rating: 4.9
+    rating: 4.9,
+    healthStatus: 'HEALTHY',
+    consecutiveLossDays: 0,
+    accumulatedProfit: 0
   },
   {
     id: 'branch-hoankiem',
@@ -354,7 +360,10 @@ export const INITIAL_BRANCHES: BranchStore[] = [
     isUnlocked: false,
     unlockCost: 3500000,
     icon: '👑',
-    rating: 5.0
+    rating: 5.0,
+    healthStatus: 'HEALTHY',
+    consecutiveLossDays: 0,
+    accumulatedProfit: 0
   },
   {
     id: 'branch-danang',
@@ -367,7 +376,10 @@ export const INITIAL_BRANCHES: BranchStore[] = [
     isUnlocked: false,
     unlockCost: 1800000,
     icon: '🌊',
-    rating: 4.7
+    rating: 4.7,
+    healthStatus: 'HEALTHY',
+    consecutiveLossDays: 0,
+    accumulatedProfit: 0
   }
 ];
 

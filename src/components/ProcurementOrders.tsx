@@ -10,10 +10,13 @@ import {
 import { useGame } from '../context/GameContext';
 
 export const ProcurementOrders: React.FC = () => {
-  const { state, createPurchaseOrder } = useGame();
+  const { state, createPurchaseOrder, receiveGoodsPackage } = useGame();
   const [selectedStyleId, setSelectedStyleId] = useState<string>(Object.keys(state.styles)[0]);
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [orderQty, setOrderQty] = useState<number>(5);
+  const [inspectingPoId, setInspectingPoId] = useState<string | null>(null);
+
+  const inspectingPo = inspectingPoId ? state.purchaseOrders.find(p => p.id === inspectingPoId) : null;
 
   const selectedStyle = state.styles[selectedStyleId] || Object.values(state.styles)[0];
   const selectedSupplier = state.suppliers[selectedStyle.supplierId];
@@ -102,38 +105,161 @@ export const ProcurementOrders: React.FC = () => {
       {/* Live Inbound Shipments Tracking */}
       {state.purchaseOrders.length > 0 && (
         <div className="bg-indigo-50/80 border-2 border-indigo-200 rounded-3xl p-5 shadow-sm">
-          <h3 className="text-sm md:text-base font-heading font-bold text-indigo-950 flex items-center gap-2 mb-3 m-0">
-            <Truck className="w-4 h-4 text-indigo-600 animate-bounceShort" />
-            Kiện Hàng Đang Vận Chuyển Về Kho Sau ({state.purchaseOrders.length})
+          <h3 className="text-sm md:text-base font-heading font-bold text-indigo-950 flex items-center justify-between mb-3 m-0">
+            <span className="flex items-center gap-2">
+              <Truck className="w-4 h-4 text-indigo-600 animate-bounceShort" />
+              Kiện Hàng Xưởng Sỉ & Tiếp Nhận ({state.purchaseOrders.length})
+            </span>
+            <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-full">
+              {state.purchaseOrders.filter(p => p.status === 'arrived').length} kiện chờ kiểm QC
+            </span>
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {state.purchaseOrders.map(po => (
-              <div key={po.id} className="bg-white p-3.5 rounded-2xl border border-indigo-200 shadow-xs">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h5 className="text-xs font-heading font-bold text-slate-800 m-0">
-                      {po.styleName} ({po.variantDesc})
-                    </h5>
-                    <span className="text-[10px] text-slate-500">
-                      Từ: {po.supplierName} • SL: <b className="text-indigo-700">+{po.quantity} chiếc</b>
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {po.secondsRemaining}s
-                  </span>
-                </div>
+            {state.purchaseOrders.map(po => {
+              const isArrived = po.status === 'arrived' || po.secondsRemaining <= 0;
 
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <motion.div 
-                    className="bg-indigo-500 h-full rounded-full"
-                    animate={{ width: `${Math.max(5, 100 - (po.secondsRemaining * 12))}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
+              return (
+                <div 
+                  key={po.id} 
+                  className={`p-3.5 rounded-2xl border transition-all ${
+                    isArrived 
+                      ? 'bg-amber-50/70 border-amber-300 shadow-sm ring-2 ring-amber-200' 
+                      : 'bg-white border-indigo-200 shadow-xs'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h5 className="text-xs font-heading font-bold text-slate-800 m-0">
+                        {po.styleName} ({po.variantDesc})
+                      </h5>
+                      <span className="text-[10px] text-slate-500">
+                        Từ: {po.supplierName} • SL: <b className="text-indigo-700">+{po.quantity} chiếc</b>
+                      </span>
+                    </div>
+                    {isArrived ? (
+                      <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                        📦 Đã đến kho
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {po.secondsRemaining}s
+                      </span>
+                    )}
+                  </div>
+
+                  {!isArrived ? (
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <motion.div 
+                        className="bg-indigo-500 h-full rounded-full"
+                        animate={{ width: `${Math.max(5, 100 - (po.secondsRemaining * 12))}%` }}
+                        transition={{ duration: 0.5 }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2.5 pt-2 border-t border-amber-200/80 flex items-center gap-2">
+                      <button
+                        onClick={() => setInspectingPoId(po.id)}
+                        className="flex-1 py-1.5 px-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-heading font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        <span>🔬 Kiểm Định QC & Nhận Hàng</span>
+                      </button>
+                      <button
+                        onClick={() => receiveGoodsPackage(po.id, 0)}
+                        title="Nhận nhanh toàn bộ lô hàng vào kho"
+                        className="py-1.5 px-3 bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition-all"
+                      >
+                        ✓ Nhận nhanh
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* QC Mini-Inspection Modal */}
+      {inspectingPo && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl max-w-md w-full p-5 border-3 border-[#ead7bd] shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <h3 className="text-base font-heading font-extrabold text-[#3a2317] m-0">
+                    Kiểm Định Lô Hàng Sỉ (QC)
+                  </h3>
+                  <p className="text-[11px] text-[#7a5a48] m-0">
+                    Đối chiếu thực tế trước khi nhập kho lưu trữ
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
+              <button 
+                onClick={() => setInspectingPoId(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-[#fffaf2] p-3 rounded-2xl border border-[#ead7bd] text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mẫu sản phẩm:</span>
+                <b className="text-slate-800">{inspectingPo.styleName}</b>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Phân loại & Size:</span>
+                <b className="text-slate-800">{inspectingPo.variantDesc}</b>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Xưởng cung cấp:</span>
+                <b className="text-indigo-700">{inspectingPo.supplierName}</b>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Số lượng kiện:</span>
+                <b className="text-emerald-700">{inspectingPo.quantity} chiếc</b>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200">
+                <span className="text-base">✓</span>
+                <span>Niêm phong kiện hàng & tem mác xưởng còn nguyên vẹn</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200">
+                <span className="text-base">✓</span>
+                <span>Chất lượng vải, độ bền cúc khóa đạt tiêu chuẩn bán lẻ</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  receiveGoodsPackage(inspectingPo.id, 0);
+                  setInspectingPoId(null);
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-heading font-bold text-xs shadow-game-btn-green transition-all"
+              >
+                ✓ Đạt Chuẩn 100% — Nhập Đủ {inspectingPo.quantity} Chiếc Vào Kho
+              </button>
+
+              <button
+                onClick={() => {
+                  receiveGoodsPackage(inspectingPo.id, 1);
+                  setInspectingPoId(null);
+                }}
+                className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-2xl font-heading font-semibold text-xs transition-all"
+              >
+                ⚠️ Phát Hiện 1 Lỗi — Nhập {inspectingPo.quantity - 1} Chiếc & Lập Biên Bản
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 

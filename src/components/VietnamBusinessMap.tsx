@@ -13,7 +13,7 @@ import { useGame } from '../context/GameContext';
 import { VIETNAM_CITIES } from '../data/fashionCatalog';
 
 export const VietnamBusinessMap: React.FC = () => {
-  const { state, unlockBranch, setActiveBranch } = useGame();
+  const { state, unlockBranch, setActiveBranch, restructureBranch, liquidateBranchStock, closeBranch } = useGame();
   const [selectedCityId, setSelectedCityId] = useState<string>('city-hcm');
 
   const selectedCity = VIETNAM_CITIES.find(c => c.id === selectedCityId) || VIETNAM_CITIES[0];
@@ -167,16 +167,46 @@ export const VietnamBusinessMap: React.FC = () => {
             </div>
 
             {/* Branch Status in this city */}
+            {/* Branch Status in this city */}
             {branchInCity ? (
-              <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 mb-4 text-xs">
-                <div className="flex items-center justify-between mb-1">
+              <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 mb-4 text-xs space-y-2">
+                <div className="flex items-center justify-between">
                   <span className="font-heading font-bold text-emerald-900">{branchInCity.name}</span>
                   <span className="text-emerald-700 font-bold">⭐ {branchInCity.rating}</span>
                 </div>
-                <p className="text-[11px] text-slate-600 m-0 mb-2">{branchInCity.district}</p>
-                <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                <p className="text-[11px] text-slate-600 m-0">{branchInCity.district}</p>
+
+                {branchInCity.isUnlocked && (
+                  <div className="pt-2 border-t border-emerald-200/80 space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Tình trạng tài chính:</span>
+                      <span className={`px-2 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                        branchInCity.healthStatus === 'RESTRUCTURING'
+                          ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                          : branchInCity.healthStatus === 'LOSS_MAKING' || branchInCity.healthStatus === 'INSOLVENT'
+                          ? 'bg-rose-100 text-rose-700 border border-rose-300 animate-pulse'
+                          : branchInCity.healthStatus === 'WARNING'
+                          ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                          : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                      }`}>
+                        {branchInCity.healthStatus === 'RESTRUCTURING' ? '🟣 Đang Tái Cấu Trúc' :
+                         branchInCity.healthStatus === 'LOSS_MAKING' ? '🔴 Thua Lỗ Kéo Dài' :
+                         branchInCity.healthStatus === 'INSOLVENT' ? '⚠️ Nguy Cơ Phá Sản' :
+                         branchInCity.healthStatus === 'WARNING' ? '🟡 Cảnh Báo Chi Phí' :
+                         '🟢 Vận Hành Khỏe Mạnh'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Lũy kế dòng tiền:</span>
+                      <b className="text-slate-700">{(branchInCity.accumulatedProfit || 0).toLocaleString('vi-VN')}đ</b>
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-[11px] text-slate-500 flex items-center gap-1 pt-1">
                   <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Quản lý trưởng: <b>{manager ? manager.name : 'Chưa bổ nhiệm'}</b></span>
+                  <span>Quản lý trưởng: <b>{manager ? manager.name : 'Chủ shop tự quản lý'}</b></span>
                 </div>
               </div>
             ) : (
@@ -186,20 +216,48 @@ export const VietnamBusinessMap: React.FC = () => {
             )}
           </div>
 
-          {/* Action Buttons */}
+          {/* Action Buttons & Restructuring Operations */}
           <div>
             {branchInCity?.isUnlocked ? (
               <div className="space-y-2">
-                <div className="w-full py-2.5 bg-emerald-100 text-emerald-800 rounded-2xl text-xs font-heading font-bold flex items-center justify-center gap-1.5">
+                <div className="w-full py-2 bg-emerald-100 text-emerald-800 rounded-2xl text-xs font-heading font-bold flex items-center justify-center gap-1.5">
                   <Check className="w-4 h-4 text-emerald-600" />
-                  <span>CHI NHÁNH ĐANG KINH DOANH</span>
+                  <span>{state.activeBranchId === branchInCity.id ? 'TIỆM ĐANG QUẢN LÝ TRỰC TIẾP' : 'CHI NHÁNH ĐANG HOẠT ĐỘNG'}</span>
                 </div>
+
                 {state.activeBranchId !== branchInCity.id && (
                   <button
                     onClick={() => setActiveBranch(branchInCity.id)}
                     className="w-full py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-xl text-xs font-bold transition-colors"
                   >
                     Chuyển đến quản lý tiệm này
+                  </button>
+                )}
+
+                {/* Branch Operations & Insolvency Recovery */}
+                <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => restructureBranch(branchInCity.id)}
+                    title="Đàm phán giảm 25% tiền thuê mặt bằng (Phí 50.000đ)"
+                    className="py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-[11px] font-bold transition-all text-center"
+                  >
+                    🛠️ Tái cấu trúc (-25% thuê)
+                  </button>
+                  <button
+                    onClick={() => liquidateBranchStock(branchInCity.id)}
+                    title="Xả kho thanh lý thu hồi dòng tiền tức thì (+350.000đ)"
+                    className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[11px] font-bold transition-all text-center"
+                  >
+                    🏷️ Xả hàng thanh lý (+350k)
+                  </button>
+                </div>
+
+                {branchInCity.id !== 'branch-main' && (
+                  <button
+                    onClick={() => closeBranch(branchInCity.id)}
+                    className="w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-[11px] font-bold transition-all text-center mt-1"
+                  >
+                    🚪 Đóng cửa chi nhánh (Cắt lỗ & thu hồi 30% cọc)
                   </button>
                 )}
               </div>

@@ -57,7 +57,7 @@ export interface PurchaseOrder {
   quantity: number;
   totalCost: number;
   secondsRemaining: number;
-  status: 'shipping' | 'received';
+  status: 'shipping' | 'arrived' | 'received';
 }
 
 export interface ReturnExchange {
@@ -156,6 +156,8 @@ export interface CityMarketProfile {
   coordinates: { x: number; y: number }; // Relative position on map (0-100%)
 }
 
+export type BranchHealthStatus = 'HEALTHY' | 'WARNING' | 'LOSS_MAKING' | 'RESTRUCTURING' | 'INSOLVENT' | 'CLOSED';
+
 export interface BranchStore {
   id: string;
   name: string;
@@ -169,6 +171,9 @@ export interface BranchStore {
   icon: string;
   managerId?: string;
   rating: number;
+  healthStatus?: BranchHealthStatus;
+  consecutiveLossDays?: number;
+  accumulatedProfit?: number;
 }
 
 export type CustomerState = 
