@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Truck, 
@@ -10,11 +10,26 @@ import {
 import { useGame } from '../context/GameContext';
 
 export const ProcurementOrders: React.FC = () => {
-  const { state, createPurchaseOrder, receiveGoodsPackage } = useGame();
-  const [selectedStyleId, setSelectedStyleId] = useState<string>(Object.keys(state.styles)[0]);
-  const [selectedVariantId, setSelectedVariantId] = useState<string>('');
+  const { state, createPurchaseOrder, receiveGoodsPackage, procurementPreset, setProcurementPreset } = useGame();
+  const [selectedStyleId, setSelectedStyleId] = useState<string>(
+    procurementPreset?.styleId || Object.keys(state.styles)[0]
+  );
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(
+    procurementPreset?.variantId || ''
+  );
   const [orderQty, setOrderQty] = useState<number>(5);
   const [inspectingPoId, setInspectingPoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (procurementPreset) {
+      if (procurementPreset.styleId && state.styles[procurementPreset.styleId]) {
+        setSelectedStyleId(procurementPreset.styleId);
+      }
+      if (procurementPreset.variantId) {
+        setSelectedVariantId(procurementPreset.variantId);
+      }
+    }
+  }, [procurementPreset, state.styles]);
 
   const inspectingPo = inspectingPoId ? state.purchaseOrders.find(p => p.id === inspectingPoId) : null;
 
@@ -31,10 +46,40 @@ export const ProcurementOrders: React.FC = () => {
   const handleOrder = () => {
     if (!currentVariant || !canAfford) return;
     createPurchaseOrder(selectedStyle.id, currentVariant.id, orderQty);
+    if (procurementPreset) {
+      setProcurementPreset(null);
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* 💡 CUSTOMER RESTOCK REQUEST BANNER */}
+      {procurementPreset && (
+        <motion.div 
+          initial={{ y: -8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-amber-100 border-2 border-amber-300 p-3.5 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold text-amber-900 shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📝</span>
+            <div>
+              <span className="font-heading font-extrabold block text-amber-950">
+                Đang tạo đơn đặt hàng sỉ theo yêu cầu của khách: {selectedStyle?.name}
+              </span>
+              <span className="text-[11px] text-amber-800 font-medium">
+                Hệ thống đã chọn sẵn mẫu mã & phân loại size bạn cần nhập từ xưởng!
+              </span>
+            </div>
+          </div>
+          <button 
+            onClick={() => setProcurementPreset(null)} 
+            className="px-2.5 py-1 bg-amber-200 hover:bg-amber-300 rounded-xl text-amber-900 text-[11px] font-extrabold transition-colors shrink-0"
+          >
+            Bỏ qua
+          </button>
+        </motion.div>
+      )}
+
       {/* 🏭 STITCH FACTORY & QC INSPECTION HERO BANNER (Screen 09) */}
       <div className="stitch-panel overflow-hidden p-4 md:p-5 bg-[#fffaf2]">
         <div className="stitch-scallop-trim"></div>

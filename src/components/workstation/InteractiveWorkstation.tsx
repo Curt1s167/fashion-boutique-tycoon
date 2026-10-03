@@ -37,7 +37,10 @@ export const InteractiveWorkstation: React.FC = () => {
     fulfillFittingSizeRequest,
     setActiveTab,
     addFloatingNumber,
-    openStoreFromPreparation
+    openStoreFromPreparation,
+    fetchItemFromBackroom,
+    dismissCustomerWithRaincheck,
+    goToProcurementForCustomer
   } = useGame();
 
   const [activeContext, setActiveContext] = useState<WorkstationContextType>('CUSTOMER_ITEM_FULFILLMENT');
@@ -191,6 +194,54 @@ export const InteractiveWorkstation: React.FC = () => {
             }
           }}
         />
+
+        {/* 3b. Quick Backroom / Stockout Actions */}
+        {activeCustomer && (activeCustomer.state === 'browsing' || activeCustomer.state === 'entering') && (() => {
+          const reqSize = activeCustomer.requestedAlternativeSize || activeCustomer.requestedSize;
+          const matchedVar = targetStyle?.variants.find(v => v.size === reqSize) || targetStyle?.variants[0];
+          const fStock = matchedVar ? matchedVar.floorStock : 0;
+          const bStock = matchedVar ? matchedVar.backroomStock : 0;
+          const isOut = fStock === 0 && bStock === 0;
+
+          return (
+            <div className="bg-white/95 p-2.5 rounded-2xl border-2 border-pink-200 flex flex-wrap items-center justify-between gap-2 shadow-xs text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                <span>Kho & Kệ (Size {reqSize}):</span>
+                {fStock > 0 && <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg font-extrabold">{fStock} trên kệ</span>}
+                {bStock > 0 && <span className="text-purple-700 bg-purple-100 px-2 py-0.5 rounded-lg font-extrabold">{bStock} trong kho</span>}
+                {isOut && <span className="text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg font-extrabold">Hết cả kho & kệ!</span>}
+              </div>
+
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                {bStock > 0 && (
+                  <button
+                    onClick={() => fetchItemFromBackroom(activeCustomer.id)}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-heading font-extrabold text-[11px] shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1"
+                  >
+                    <span>📦 Vào kho lấy ({bStock}c)</span>
+                  </button>
+                )}
+
+                {isOut && (
+                  <>
+                    <button
+                      onClick={() => dismissCustomerWithRaincheck(activeCustomer.id)}
+                      className="flex-1 sm:flex-none px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-xl font-heading font-extrabold text-[11px] active:scale-95 transition-all"
+                    >
+                      <span>🤝 Hẹn lần sau</span>
+                    </button>
+                    <button
+                      onClick={() => goToProcurementForCustomer(activeCustomer.targetStyleId, matchedVar?.id, activeCustomer.id)}
+                      className="flex-1 sm:flex-none px-2.5 py-1.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl font-heading font-extrabold text-[11px] shadow-sm active:scale-95 transition-all"
+                    >
+                      <span>📝 Đăng ký nhập sỉ →</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 4. Current Step Instruction Banner */}
         <InstructionBanner

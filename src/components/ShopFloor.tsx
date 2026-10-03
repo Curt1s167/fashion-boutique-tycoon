@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Zap, 
   ShoppingBag, 
@@ -9,17 +9,23 @@ import {
   ArrowDownToLine, 
   Undo2, 
   Check, 
-  X,
-  Sparkles,
-  Users
+  X, 
+  Sparkles, 
+  Users,
+  Package,
+  CalendarCheck
 } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { First7DaysJourneyWidget } from './First7DaysJourneyWidget';
+import type { Customer } from '../types/game';
 
 export const ShopFloor: React.FC = () => {
   const { 
     state, 
     fetchItemForCustomer,
+    fetchItemFromBackroom,
+    dismissCustomerWithRaincheck,
+    goToProcurementForCustomer,
     checkoutCustomerManual,
     rushFitting, 
     rushCheckout, 
@@ -35,6 +41,8 @@ export const ShopFloor: React.FC = () => {
     resolveIncident,
     openStoreFromPreparation
   } = useGame();
+
+  const [selectedFloorCustomer, setSelectedFloorCustomer] = useState<Customer | null>(null);
 
   const fittingCustomers = state.customers.filter(c => c.state === 'fitting');
   const checkoutCustomers = state.customers.filter(c => c.state === 'checkout');
@@ -194,12 +202,129 @@ export const ShopFloor: React.FC = () => {
             </button>
           </div>
 
+          {/* 🚶 ANIMATED LIVING CUSTOMERS WALKING ACROSS SHOP FLOOR */}
+          {state.customers.map((cust, idx) => {
+            let posX = 8;
+            let posY = 76;
+
+            if (cust.state === 'entering') {
+              posX = 8 + (idx * 3.5);
+              posY = 76;
+            } else if (cust.state === 'browsing' || cust.state === 'needs_assistance' || cust.state === 'waiting_item') {
+              // Smooth walking destination based on requested fashion category
+              if (cust.targetCategory === 'tops') {
+                posX = 20 + ((idx % 2) * 5);
+                posY = 36 + (Math.floor(idx / 2) * 4);
+              } else if (cust.targetCategory === 'bottoms') {
+                posX = 46 + ((idx % 2) * 5);
+                posY = 52 + (Math.floor(idx / 2) * 4);
+              } else if (cust.targetCategory === 'footwear') {
+                posX = 68 + ((idx % 2) * 5);
+                posY = 62 + (Math.floor(idx / 2) * 4);
+              } else if (cust.targetCategory === 'bags') {
+                posX = 35 + ((idx % 2) * 5);
+                posY = 68 + (Math.floor(idx / 2) * 4);
+              } else {
+                posX = 56 + ((idx % 2) * 5);
+                posY = 42 + (Math.floor(idx / 2) * 4);
+              }
+            } else if (cust.state === 'fitting') {
+              posX = 78 + (idx * 4);
+              posY = 36;
+            } else if (cust.state === 'checkout') {
+              posX = 20 + (idx * 5.5);
+              posY = 78;
+            }
+
+            const targetStyle = state.styles[cust.targetStyleId];
+            const targetVar = targetStyle?.variants.find(v => v.size === (cust.requestedAlternativeSize || cust.requestedSize)) || targetStyle?.variants[0];
+            const floorStock = targetVar ? targetVar.floorStock : 0;
+            const backroomStock = targetVar ? targetVar.backroomStock : 0;
+            const isOutOfStock = floorStock === 0 && backroomStock === 0;
+
+            return (
+              <motion.div
+                key={cust.id}
+                initial={{ left: '8%', top: '76%', opacity: 0, scale: 0.8 }}
+                animate={{ 
+                  left: `${posX}%`, 
+                  top: `${posY}%`, 
+                  opacity: 1, 
+                  scale: 1 
+                }}
+                transition={{ 
+                  type: 'spring', 
+                  damping: 18, 
+                  stiffness: 45,
+                  mass: 0.9 
+                }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-30 cursor-pointer pointer-events-auto select-none group"
+                onClick={() => setSelectedFloorCustomer(cust)}
+                title={`Bấm để phục vụ ${cust.name}`}
+              >
+                {/* 💬 SPEECH BUBBLE: Requested Style & Size */}
+                {(cust.state === 'browsing' || cust.state === 'entering' || cust.state === 'waiting_item') && (
+                  <motion.div
+                    animate={{ y: [0, -3, 0] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                    className="absolute -top-11 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xs px-2 py-0.5 rounded-xl border-2 border-pink-300 shadow-md whitespace-nowrap flex items-center gap-1 z-40 group-hover:scale-110 transition-transform"
+                  >
+                    <span className="text-[11px]">{targetStyle?.emoji || '👗'}</span>
+                    <div className="flex flex-col text-left leading-none">
+                      <span className="text-[9px] font-black text-[#3a2317]">
+                        {targetStyle?.name?.slice(0, 9)}
+                      </span>
+                      <span className="text-[8px] font-extrabold text-[#ef6f8e]">
+                        Size {cust.requestedAlternativeSize || cust.requestedSize}
+                      </span>
+                    </div>
+                    {isOutOfStock ? (
+                      <span className="text-[7px] bg-rose-500 text-white font-extrabold px-1 rounded-sm animate-pulse">
+                        HẾT
+                      </span>
+                    ) : backroomStock > 0 && floorStock === 0 ? (
+                      <span className="text-[7px] bg-purple-600 text-white font-extrabold px-1 rounded-sm">
+                        KHO
+                      </span>
+                    ) : null}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-pink-300"></div>
+                  </motion.div>
+                )}
+
+                {/* 🚶 Character Body Bobbing & Shadow */}
+                <div className="relative flex flex-col items-center">
+                  <div className="w-4 h-1.5 bg-black/25 rounded-full filter blur-[1px] -mb-1"></div>
+                  <motion.div
+                    animate={{ 
+                      y: [0, -3.5, 0],
+                      rotate: [-2, 2, -2]
+                    }}
+                    transition={{ 
+                      repeat: Infinity, 
+                      duration: 1.2, 
+                      ease: 'easeInOut' 
+                    }}
+                    className="relative text-xl md:text-2xl filter drop-shadow-sm group-hover:scale-125 transition-transform"
+                  >
+                    {cust.avatar}
+                  </motion.div>
+                  <div className="w-6 bg-black/35 rounded-full h-1 mt-0.5 overflow-hidden">
+                    <div 
+                      className={`h-full ${cust.patience > 50 ? 'bg-emerald-400' : cust.patience > 25 ? 'bg-amber-400' : 'bg-rose-500'}`}
+                      style={{ width: `${cust.patience}%` }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+
           {/* Floor Ambient Ribbon Footer */}
           <div className="absolute bottom-2 inset-x-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center justify-between border border-[#ead7bd] shadow-xs">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#4fa883]"></span>
               <span className="text-[10px] md:text-xs font-bold text-[#7a5a48]">
-                Không gian Boutique Nini Bến Thành • Sạch sẽ: {state.cleanliness}%
+                Không gian Boutique Nini Bến Thành • Sạch sẽ: {state.cleanliness}% • {state.customers.length} khách trên sàn
               </span>
             </div>
             <button 
@@ -211,6 +336,145 @@ export const ShopFloor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 🛍️ QUICK CUSTOMER ACTION MODAL (When tapping customer directly on floor) */}
+      <AnimatePresence>
+        {selectedFloorCustomer && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3">
+            {(() => {
+              const cust = selectedFloorCustomer;
+              const targetStyle = state.styles[cust.targetStyleId];
+              const requestedSize = cust.requestedAlternativeSize || cust.requestedSize;
+              const targetVar = targetStyle?.variants.find(v => v.size === requestedSize) || targetStyle?.variants[0];
+              const floorStock = targetVar ? targetVar.floorStock : 0;
+              const backroomStock = targetVar ? targetVar.backroomStock : 0;
+              const isOutOfStock = floorStock === 0 && backroomStock === 0;
+
+              return (
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 10 }}
+                  className="bg-white rounded-3xl p-5 border-3 border-pink-200 shadow-2xl max-w-sm w-full space-y-3.5 relative text-[#3a2317]"
+                >
+                  <button 
+                    onClick={() => setSelectedFloorCustomer(null)}
+                    className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm transition-colors"
+                  >
+                    ✕
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-4xl">{cust.avatar}</span>
+                    <div>
+                      <h3 className="text-base font-heading font-extrabold text-slate-800 m-0">
+                        {cust.name}
+                      </h3>
+                      <span className="text-xs text-pink-600 font-bold block mt-0.5">
+                        {cust.archetype} • Kiên nhẫn: {cust.patience}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-pink-50/90 p-3 rounded-2xl border border-pink-200 text-xs">
+                    <div className="text-slate-500 font-medium mb-1">
+                      Khách đang tìm mua:
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-3xl">{targetStyle?.emoji}</span>
+                      <div>
+                        <div className="font-heading font-extrabold text-sm text-[#3a2317]">
+                          {targetStyle?.name}
+                        </div>
+                        <div className="text-xs text-pink-700 font-bold mt-0.5">
+                          Màu {cust.preferredColor} • Cần đúng <span className="underline font-black">Size {requestedSize}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stock Availability Metrics */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Trên kệ bán:</span>
+                      <span className={floorStock > 0 ? "font-extrabold text-emerald-600" : "font-extrabold text-rose-500"}>
+                        {floorStock > 0 ? `${floorStock} chiếc` : '0 (Hết kệ)'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px]">Kho phía sau:</span>
+                      <span className={backroomStock > 0 ? "font-extrabold text-purple-700" : "font-extrabold text-rose-500"}>
+                        {backroomStock > 0 ? `${backroomStock} chiếc` : '0 (Hết kho)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Operations Actions */}
+                  <div className="space-y-2 pt-1">
+                    {backroomStock > 0 && (
+                      <button
+                        onClick={() => {
+                          fetchItemFromBackroom(cust.id);
+                          setSelectedFloorCustomer(null);
+                        }}
+                        className="btn-3d w-full py-2.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-heading font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <Package className="w-4 h-4" />
+                        <span>Vào Kho Lấy Hàng (Còn {backroomStock} chiếc)</span>
+                      </button>
+                    )}
+
+                    {floorStock > 0 && (
+                      <button
+                        onClick={() => {
+                          fetchItemForCustomer(cust.id);
+                          setSelectedFloorCustomer(null);
+                        }}
+                        className="btn-3d w-full py-2.5 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>Lấy Ngay Trên Kệ (Còn {floorStock} chiếc)</span>
+                      </button>
+                    )}
+
+                    {isOutOfStock && (
+                      <>
+                        <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-bold text-rose-700">
+                          ⚠️ Size {requestedSize} hiện đã hết sạch cả kệ lẫn kho!
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            dismissCustomerWithRaincheck(cust.id);
+                            setSelectedFloorCustomer(null);
+                          }}
+                          className="w-full py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-heading font-extrabold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <CalendarCheck className="w-4 h-4 text-amber-700" />
+                          <span>Hẹn Khách Lần Sau Quay Lại 🤝</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const targetCustId = cust.id;
+                            const styleId = cust.targetStyleId;
+                            const varId = targetVar?.id;
+                            setSelectedFloorCustomer(null);
+                            goToProcurementForCustomer(styleId, varId, targetCustId);
+                          }}
+                          className="btn-3d w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-heading font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                        >
+                          <span>📝 Đi Đăng Ký Nhập Hàng Sỉ →</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })()}
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 🚨 OPERATIONAL INCIDENTS & SHRINKAGE STRIP (ANTIGRAVITY_MASTER_AUDIT_REAL_STORE_OPERATIONS_PROMPT) */}
       {state.activeIncidents.filter(i => !i.resolved).length > 0 && (
@@ -980,23 +1244,48 @@ export const ShopFloor: React.FC = () => {
                       </div>
                     ) : null}
 
-                    {/* Standard direct fetch from shelf/backroom */}
-                    {hasAnyStock ? (
+                    {/* Backroom Warehouse Fetch Button */}
+                    {backroomStock > 0 && (
+                      <button
+                        onClick={() => fetchItemFromBackroom(cust.id)}
+                        className="btn-3d w-full py-1.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-heading font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Vào kho lấy ({backroomStock} chiếc) 📦</span>
+                      </button>
+                    )}
+
+                    {/* Retail Shelf Fetch Button */}
+                    {floorStock > 0 && (
                       <button
                         onClick={() => fetchItemForCustomer(cust.id)}
-                        className="w-full py-1.5 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-bold text-xs shadow-game-btn flex items-center justify-center gap-1.5"
+                        className="btn-3d w-full py-1.5 px-3 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-heading font-bold text-xs shadow-game-btn flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>Lấy từ kệ & Đưa khách 🛍️</span>
+                        <span>Lấy từ kệ ({floorStock} chiếc) 🛍️</span>
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => setActiveTab('procurement')}
-                        className="w-full py-2 px-3 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-heading font-bold text-xs flex items-center justify-center gap-1 border border-rose-300 transition-colors"
-                      >
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Hết hàng - Đặt sỉ xưởng ngay →</span>
-                      </button>
+                    )}
+
+                    {/* Out of Stock Actions: Raincheck & Procurement Registration */}
+                    {!hasAnyStock && (
+                      <div className="space-y-1.5 pt-0.5">
+                        <button
+                          onClick={() => dismissCustomerWithRaincheck(cust.id)}
+                          className="w-full py-1.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-heading font-extrabold text-[11px] flex items-center justify-center gap-1 transition-colors active:scale-95"
+                          title="Hẹn khách quay lại dịp khác, không bị trừ uy tín"
+                        >
+                          <CalendarCheck className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Hẹn khách lần sau quay lại 🤝</span>
+                        </button>
+
+                        <button
+                          onClick={() => goToProcurementForCustomer(cust.targetStyleId, targetVar?.id, cust.id)}
+                          className="btn-3d w-full py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-heading font-extrabold text-xs shadow-game-btn flex items-center justify-center gap-1 transition-all active:scale-95"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>Đi đăng ký nhập hàng sỉ →</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -217,6 +217,7 @@ export interface Customer {
   requestedAlternativeSize?: string; // If in fitting room and requests new size
   fittingAttempts?: number;
   billAmount?: number;
+  raincheckGiven?: boolean;
 }
 
 export interface FloatingNumber {
@@ -486,6 +487,10 @@ export interface GameState {
     resolved: boolean;
     createdAtDay: number;
   }>;
+  procurementPreset?: {
+    styleId: string;
+    variantId?: string;
+  } | null;
 }
 
 export interface TaxRuleConfig {

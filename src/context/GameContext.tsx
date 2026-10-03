@@ -81,6 +81,11 @@ interface GameContextType {
   fulfillFittingSizeRequest: (customerId: string, newSize: string) => void;
   setGameSpeed: (speed: number) => void;
   openStoreFromPreparation: () => void;
+  fetchItemFromBackroom: (customerId: string) => void;
+  dismissCustomerWithRaincheck: (customerId: string) => void;
+  goToProcurementForCustomer: (styleId: string, variantId?: string, customerIdToDismiss?: string) => void;
+  procurementPreset: { styleId: string; variantId?: string } | null;
+  setProcurementPreset: (preset: { styleId: string; variantId?: string } | null) => void;
   // Interactive Workstation & Preparation Table (ANTIGRAVITY_INTERACTIVE_WORKSTATION_UI_SPEC)
   placeItemOnPrepTable: (styleId: string, variantId: string, source: 'rack' | 'backroom') => void;
   removeItemFromPrepTable: (itemId: string, returnTarget: 'rack' | 'backroom') => void;
@@ -300,7 +305,8 @@ const INITIAL_GAME_STATE: GameState = {
   },
 
   // 🚨 REAL STORE OPERATIONAL INCIDENTS & SHRINKAGE
-  activeIncidents: []
+  activeIncidents: [],
+  procurementPreset: null
 };
 
 const CUSTOMER_NAMES = [
@@ -338,6 +344,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
   const [isWeek7ReviewOpen, setIsWeek7ReviewOpen] = useState(false);
+  const [procurementPreset, setProcurementPreset] = useState<{ styleId: string; variantId?: string } | null>(null);
 
   const openWhyModal = useCallback(() => {
     sound.playPop();
@@ -629,6 +636,108 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
   }, [addFloatingNumber]);
+
+  // Fetch specifically from backroom warehouse for customer
+  const fetchItemFromBackroom = useCallback((customerId: string) => {
+    setState(prev => {
+      const idx = prev.customers.findIndex(c => c.id === customerId);
+      if (idx === -1) return prev;
+      const cust = prev.customers[idx];
+
+      const style = prev.styles[cust.targetStyleId];
+      if (!style) return prev;
+
+      const requestedSize = cust.requestedAlternativeSize || cust.requestedSize;
+      let targetVariant = style.variants.find(v => v.size === requestedSize && v.backroomStock > 0);
+      if (!targetVariant) {
+        targetVariant = style.variants.find(v => v.backroomStock > 0);
+      }
+
+      if (!targetVariant || targetVariant.backroomStock <= 0) {
+        sound.playAngry();
+        addFloatingNumber('❌ Trong kho không còn hàng!', 'sad');
+        return prev;
+      }
+
+      const updatedVariants = style.variants.map(v => {
+        if (v.id === targetVariant.id) {
+          return {
+            ...v,
+            backroomStock: v.backroomStock - 1,
+            salesCount: v.salesCount + 1
+          };
+        }
+        return v;
+      });
+
+      sound.playPop();
+      addFloatingNumber(`📦 Bạn đã vào kho lấy: ${style.name} (${targetVariant.size})!`, 'clean');
+
+      const updatedCustomers = [...prev.customers];
+      updatedCustomers[idx] = {
+        ...cust,
+        state: 'fitting',
+        stateProgress: 20,
+        patience: Math.min(100, cust.patience + 40),
+        cartVariantId: targetVariant.id,
+        billAmount: targetVariant.sellPrice,
+        cartItems: [
+          ...(cust.cartItems || []),
+          {
+            id: 'cart-' + Date.now(),
+            styleId: style.id,
+            styleName: style.name,
+            variantId: targetVariant.id,
+            size: targetVariant.size,
+            colorName: targetVariant.colorName,
+            sellPrice: targetVariant.sellPrice,
+            emoji: style.emoji
+          }
+        ],
+        requestedAlternativeSize: undefined
+      };
+
+      return {
+        ...prev,
+        styles: {
+          ...prev.styles,
+          [style.id]: {
+            ...style,
+            variants: updatedVariants
+          }
+        },
+        customers: updatedCustomers
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Polite raincheck when item is out of stock (no lost customer / anger penalty)
+  const dismissCustomerWithRaincheck = useCallback((customerId: string) => {
+    setState(prev => {
+      const cust = prev.customers.find(c => c.id === customerId);
+      if (!cust) return prev;
+
+      sound.playPop();
+      addFloatingNumber(`💌 Đã hẹn khách lần sau! Khách vui vẻ chào tạm biệt (+5 Exp)`, 'clean');
+
+      return {
+        ...prev,
+        reputationExp: prev.reputationExp + 5,
+        customers: prev.customers.filter(c => c.id !== customerId)
+      };
+    });
+  }, [addFloatingNumber]);
+
+  // Navigate to wholesale procurement pre-selected for requested style & variant
+  const goToProcurementForCustomer = useCallback((styleId: string, variantId?: string, customerIdToDismiss?: string) => {
+    if (customerIdToDismiss) {
+      dismissCustomerWithRaincheck(customerIdToDismiss);
+    }
+    setProcurementPreset({ styleId, variantId });
+    setActiveTab('procurement');
+    sound.playPop();
+    addFloatingNumber(`📝 Mở phiếu đặt sỉ từ xưởng...`, 'order');
+  }, [dismissCustomerWithRaincheck, setActiveTab, addFloatingNumber]);
 
   // Manual POS checkout & payment collection (Money is only credited here or via cashier)
   const checkoutCustomerManual = useCallback((customerId: string) => {
@@ -2734,6 +2843,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fulfillFittingSizeRequest,
         setGameSpeed,
         openStoreFromPreparation,
+        fetchItemFromBackroom,
+        dismissCustomerWithRaincheck,
+        goToProcurementForCustomer,
+        procurementPreset,
+        setProcurementPreset,
         placeItemOnPrepTable,
         removeItemFromPrepTable,
         clearPrepTable,
