@@ -19,6 +19,8 @@ export const setActiveSlotId = (slotId: string): void => {
   }
 };
 
+export const CURRENT_SAVE_VERSION = 5;
+
 export const getSaveSlotsMetadata = (): SaveSlotMetadata[] => {
   const slotIds = ['slot_1', 'slot_2', 'slot_3'];
   const defaultNames: Record<string, string> = {
@@ -32,7 +34,7 @@ export const getSaveSlotsMetadata = (): SaveSlotMetadata[] => {
       const raw = localStorage.getItem(SAVE_PREFIX + slotId);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.state) {
+        if (parsed && parsed.version === CURRENT_SAVE_VERSION && parsed.state) {
           return {
             slotId,
             slotName: parsed.slotName || defaultNames[slotId],
@@ -63,7 +65,7 @@ export const getSaveSlotsMetadata = (): SaveSlotMetadata[] => {
 export const saveGameState = (state: GameState, slotId = getActiveSlotId()): void => {
   try {
     const payload = {
-      version: 3,
+      version: CURRENT_SAVE_VERSION,
       slotId,
       slotName: slotId === 'slot_1' ? 'Chiến Dịch 1 (Chính)' : slotId === 'slot_2' ? 'Chiến Dịch 2' : 'Chiến Dịch 3',
       savedAt: Date.now(),
@@ -84,7 +86,7 @@ export const loadGameState = (slotId = getActiveSlotId()): Partial<GameState> | 
     const raw = localStorage.getItem(SAVE_PREFIX + slotId);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.state) {
+    if (parsed && parsed.version === CURRENT_SAVE_VERSION && parsed.state) {
       return parsed.state;
     }
   } catch (err) {
@@ -98,5 +100,18 @@ export const clearGameState = (slotId = getActiveSlotId()): void => {
     localStorage.removeItem(SAVE_PREFIX + slotId);
   } catch (err) {
     console.warn('Could not clear save:', err);
+  }
+};
+
+export const clearAllGameData = (): void => {
+  try {
+    ['slot_1', 'slot_2', 'slot_3'].forEach(slotId => {
+      localStorage.removeItem(SAVE_PREFIX + slotId);
+    });
+    localStorage.removeItem(ACTIVE_SLOT_KEY);
+    localStorage.removeItem('FASHION_BOUTIQUE_GAME_STATE');
+    localStorage.removeItem('fashion_boutique_save');
+  } catch (err) {
+    console.warn('Could not clear all game saves:', err);
   }
 };

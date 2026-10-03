@@ -55,11 +55,11 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 30,
     unlocked: true,
     variants: [
-      { id: 'TEE-PINK-S', styleId: 'style-baby-tee', colorName: 'Hồng Phấn', colorHex: '#FBCFE8', size: 'S', costPrice: 55000, sellPrice: 165000, floorStock: 5, backroomStock: 10, reserved: 0, salesCount: 0 },
-      { id: 'TEE-PINK-M', styleId: 'style-baby-tee', colorName: 'Hồng Phấn', colorHex: '#FBCFE8', size: 'M', costPrice: 55000, sellPrice: 165000, floorStock: 6, backroomStock: 12, reserved: 0, salesCount: 0 },
-      { id: 'TEE-WHITE-S', styleId: 'style-baby-tee', colorName: 'Trắng Kem', colorHex: '#F8FAFC', size: 'S', costPrice: 55000, sellPrice: 165000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
-      { id: 'TEE-WHITE-M', styleId: 'style-baby-tee', colorName: 'Trắng Kem', colorHex: '#F8FAFC', size: 'M', costPrice: 55000, sellPrice: 165000, floorStock: 5, backroomStock: 10, reserved: 0, salesCount: 0 },
-      { id: 'TEE-MINT-L', styleId: 'style-baby-tee', colorName: 'Xanh Mint', colorHex: '#A7F3D0', size: 'L', costPrice: 55000, sellPrice: 165000, floorStock: 3, backroomStock: 6, reserved: 0, salesCount: 0 },
+      { id: 'TEE-PINK-S', styleId: 'style-baby-tee', colorName: 'Hồng Phấn', colorHex: '#FBCFE8', size: 'S', costPrice: 55000, sellPrice: 165000, floorStock: 2, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'TEE-PINK-M', styleId: 'style-baby-tee', colorName: 'Hồng Phấn', colorHex: '#FBCFE8', size: 'M', costPrice: 55000, sellPrice: 165000, floorStock: 2, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'TEE-WHITE-S', styleId: 'style-baby-tee', colorName: 'Trắng Kem', colorHex: '#F8FAFC', size: 'S', costPrice: 55000, sellPrice: 165000, floorStock: 1, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'TEE-WHITE-M', styleId: 'style-baby-tee', colorName: 'Trắng Kem', colorHex: '#F8FAFC', size: 'M', costPrice: 55000, sellPrice: 165000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'TEE-MINT-L', styleId: 'style-baby-tee', colorName: 'Xanh Mint', colorHex: '#A7F3D0', size: 'L', costPrice: 55000, sellPrice: 165000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   },
   'style-baggy-jeans': {
@@ -76,10 +76,10 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 25,
     unlocked: true,
     variants: [
-      { id: 'JNS-BLUE-S', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'S', costPrice: 130000, sellPrice: 340000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
-      { id: 'JNS-BLUE-M', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'M', costPrice: 130000, sellPrice: 340000, floorStock: 5, backroomStock: 10, reserved: 0, salesCount: 0 },
-      { id: 'JNS-BLUE-L', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'L', costPrice: 130000, sellPrice: 340000, floorStock: 3, backroomStock: 7, reserved: 0, salesCount: 0 },
-      { id: 'JNS-BLACK-M', styleId: 'style-baggy-jeans', colorName: 'Đen Khói', colorHex: '#334155', size: 'M', costPrice: 130000, sellPrice: 340000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
+      { id: 'JNS-BLUE-S', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'S', costPrice: 130000, sellPrice: 340000, floorStock: 2, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'JNS-BLUE-M', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'M', costPrice: 130000, sellPrice: 340000, floorStock: 2, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'JNS-BLUE-L', styleId: 'style-baggy-jeans', colorName: 'Xanh Nhạt', colorHex: '#BAE6FD', size: 'L', costPrice: 130000, sellPrice: 340000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'JNS-BLACK-M', styleId: 'style-baggy-jeans', colorName: 'Đen Khói', colorHex: '#334155', size: 'M', costPrice: 130000, sellPrice: 340000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   },
   'style-chunky-sneaker': {
@@ -96,11 +96,11 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 20,
     unlocked: true,
     variants: [
-      { id: 'SNK-WHT-36', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 36', costPrice: 240000, sellPrice: 580000, floorStock: 3, backroomStock: 5, reserved: 0, salesCount: 0 },
-      { id: 'SNK-WHT-37', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 37', costPrice: 240000, sellPrice: 580000, floorStock: 4, backroomStock: 6, reserved: 0, salesCount: 0 },
-      { id: 'SNK-WHT-38', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 38', costPrice: 240000, sellPrice: 580000, floorStock: 3, backroomStock: 6, reserved: 0, salesCount: 0 },
-      { id: 'SNK-BEIGE-38', styleId: 'style-chunky-sneaker', colorName: 'Kem Be', colorHex: '#FED7AA', size: 'EU 38', costPrice: 240000, sellPrice: 580000, floorStock: 2, backroomStock: 5, reserved: 0, salesCount: 0 },
-      { id: 'SNK-BEIGE-39', styleId: 'style-chunky-sneaker', colorName: 'Kem Be', colorHex: '#FED7AA', size: 'EU 39', costPrice: 240000, sellPrice: 580000, floorStock: 2, backroomStock: 4, reserved: 0, salesCount: 0 },
+      { id: 'SNK-WHT-36', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 36', costPrice: 240000, sellPrice: 580000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'SNK-WHT-37', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 37', costPrice: 240000, sellPrice: 580000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'SNK-WHT-38', styleId: 'style-chunky-sneaker', colorName: 'Trắng Sữa', colorHex: '#F1F5F9', size: 'EU 38', costPrice: 240000, sellPrice: 580000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'SNK-BEIGE-38', styleId: 'style-chunky-sneaker', colorName: 'Kem Be', colorHex: '#FED7AA', size: 'EU 38', costPrice: 240000, sellPrice: 580000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'SNK-BEIGE-39', styleId: 'style-chunky-sneaker', colorName: 'Kem Be', colorHex: '#FED7AA', size: 'EU 39', costPrice: 240000, sellPrice: 580000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   },
   'style-underarm-bag': {
@@ -117,9 +117,9 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 20,
     unlocked: true,
     variants: [
-      { id: 'BAG-CREAM-FS', styleId: 'style-underarm-bag', colorName: 'Kem Bơ', colorHex: '#FEF08A', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
-      { id: 'BAG-BLACK-FS', styleId: 'style-underarm-bag', colorName: 'Đen Bóng', colorHex: '#1E293B', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 5, backroomStock: 7, reserved: 0, salesCount: 0 },
-      { id: 'BAG-ROSE-FS', styleId: 'style-underarm-bag', colorName: 'Hồng Đào', colorHex: '#FDA4AF', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 3, backroomStock: 5, reserved: 0, salesCount: 0 },
+      { id: 'BAG-CREAM-FS', styleId: 'style-underarm-bag', colorName: 'Kem Bơ', colorHex: '#FEF08A', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'BAG-BLACK-FS', styleId: 'style-underarm-bag', colorName: 'Đen Bóng', colorHex: '#1E293B', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'BAG-ROSE-FS', styleId: 'style-underarm-bag', colorName: 'Hồng Đào', colorHex: '#FDA4AF', size: 'Free Size', costPrice: 170000, sellPrice: 450000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   },
   'style-tweed-blazer': {
@@ -136,9 +136,9 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 15,
     unlocked: true,
     variants: [
-      { id: 'BLZ-PINK-S', styleId: 'style-tweed-blazer', colorName: 'Hồng Pastel', colorHex: '#FBCFE8', size: 'S', costPrice: 280000, sellPrice: 690000, floorStock: 3, backroomStock: 5, reserved: 0, salesCount: 0 },
-      { id: 'BLZ-PINK-M', styleId: 'style-tweed-blazer', colorName: 'Hồng Pastel', colorHex: '#FBCFE8', size: 'M', costPrice: 280000, sellPrice: 690000, floorStock: 3, backroomStock: 5, reserved: 0, salesCount: 0 },
-      { id: 'BLZ-BLK-M', styleId: 'style-tweed-blazer', colorName: 'Đen Kim Tuyến', colorHex: '#0F172A', size: 'M', costPrice: 280000, sellPrice: 690000, floorStock: 2, backroomStock: 4, reserved: 0, salesCount: 0 },
+      { id: 'BLZ-PINK-S', styleId: 'style-tweed-blazer', colorName: 'Hồng Pastel', colorHex: '#FBCFE8', size: 'S', costPrice: 280000, sellPrice: 690000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'BLZ-PINK-M', styleId: 'style-tweed-blazer', colorName: 'Hồng Pastel', colorHex: '#FBCFE8', size: 'M', costPrice: 280000, sellPrice: 690000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'BLZ-BLK-M', styleId: 'style-tweed-blazer', colorName: 'Đen Kim Tuyến', colorHex: '#0F172A', size: 'M', costPrice: 280000, sellPrice: 690000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   },
   'style-beret-hat': {
@@ -155,8 +155,8 @@ export const INITIAL_STYLES: Record<string, ProductStyle> = {
     shelfCapacity: 25,
     unlocked: true,
     variants: [
-      { id: 'HAT-CARAMEL-FS', styleId: 'style-beret-hat', colorName: 'Nâu Caramel', colorHex: '#D97706', size: 'Free Size', costPrice: 45000, sellPrice: 125000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
-      { id: 'HAT-BLACK-FS', styleId: 'style-beret-hat', colorName: 'Đen Tuyền', colorHex: '#18181B', size: 'Free Size', costPrice: 45000, sellPrice: 125000, floorStock: 4, backroomStock: 8, reserved: 0, salesCount: 0 },
+      { id: 'HAT-CARAMEL-FS', styleId: 'style-beret-hat', colorName: 'Nâu Caramel', colorHex: '#D97706', size: 'Free Size', costPrice: 45000, sellPrice: 125000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
+      { id: 'HAT-BLACK-FS', styleId: 'style-beret-hat', colorName: 'Đen Tuyền', colorHex: '#18181B', size: 'Free Size', costPrice: 45000, sellPrice: 125000, floorStock: 0, backroomStock: 0, reserved: 0, salesCount: 0 },
     ]
   }
 };

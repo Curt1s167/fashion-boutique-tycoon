@@ -36,7 +36,8 @@ export const InteractiveWorkstation: React.FC = () => {
     rushFitting,
     fulfillFittingSizeRequest,
     setActiveTab,
-    addFloatingNumber
+    addFloatingNumber,
+    openStoreFromPreparation
   } = useGame();
 
   const [activeContext, setActiveContext] = useState<WorkstationContextType>('CUSTOMER_ITEM_FULFILLMENT');
@@ -135,6 +136,36 @@ export const InteractiveWorkstation: React.FC = () => {
 
         {/* 1b. First 7 Days Journey Companion Bar */}
         <First7DaysJourneyWidget />
+
+        {/* 1c. Morning Preparation & Store Opening Notice */}
+        {state.dayPhase === 'PREPARATION' && (
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-gradient-to-r from-amber-50 via-[#fff8ef] to-orange-50 border-2 border-amber-300 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-[#3a2317] shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl">☀️</span>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase text-amber-800 bg-amber-200/90 px-2 py-0.5 rounded-full">
+                    GIỜ CHUẨN BỊ (08:00 AM)
+                  </span>
+                  <span className="text-[11px] font-bold text-[#7a5a48]">Ngày {state.day}</span>
+                </div>
+                <div className="text-xs font-bold text-[#3a2317] mt-0.5">
+                  Tiệm chưa mở cửa đón khách!
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={openStoreFromPreparation}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0"
+            >
+              <span>🔔 MỞ CỬA TIỆM ĐÓN KHÁCH</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* 2. Context Switcher Bar (10 Retail Contexts) */}
         <WorkstationContextSwitcher

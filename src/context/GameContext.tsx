@@ -21,7 +21,6 @@ import {
   INITIAL_LOOKBOOK, 
   INITIAL_BRANCHES, 
   INITIAL_SOCIAL_POSTS,
-  INITIAL_EMPLOYEES,
   INITIAL_REVIEWS,
   INITIAL_ADVISOR_INSIGHTS
 } from '../data/fashionCatalog';
@@ -31,7 +30,7 @@ import { sound } from '../utils/sound';
 import { 
   saveGameState, 
   loadGameState, 
-  clearGameState, 
+  clearAllGameData,
   setActiveSlotId 
 } from '../utils/saveManager';
 
@@ -152,7 +151,7 @@ const INITIAL_GAME_STATE: GameState = {
   isDayRunning: true,
 
   gameSpeed: 1,
-  dayPhase: 'MORNING',
+  dayPhase: 'PREPARATION',
   currentInGameMinutes: 480, // 08:00 AM
 
   playerCarry: [],
@@ -168,7 +167,7 @@ const INITIAL_GAME_STATE: GameState = {
   suppliers: INITIAL_SUPPLIERS,
   purchaseOrders: [],
   customers: [],
-  employees: INITIAL_EMPLOYEES,
+  employees: [],
   reviews: INITIAL_REVIEWS,
   returnRequests: [],
   onlineOrders: [],
@@ -301,20 +300,7 @@ const INITIAL_GAME_STATE: GameState = {
   },
 
   // 🚨 REAL STORE OPERATIONAL INCIDENTS & SHRINKAGE
-  activeIncidents: [
-    {
-      id: 'inc-01',
-      type: 'THEFT_SHRINKAGE',
-      title: 'Phát hiện lệch tồn kho kiểm kê kệ áo',
-      description: 'Kiểm kê ca sáng phát hiện thiếu hụt 1 áo thun Babytee. Cần trích xuất camera và lập biên bản hao hụt.',
-      severity: 'minor',
-      impactText: 'Hao hụt giá vốn 65.000đ • Ảnh hưởng độ chính xác kho',
-      costToResolve: 65000,
-      evidenceText: 'Camera góc C1 ghi nhận khu vực đông khách thử đồ.',
-      resolved: false,
-      createdAtDay: 1
-    }
-  ]
+  activeIncidents: []
 };
 
 const CUSTOMER_NAMES = [
@@ -995,13 +981,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Transition from morning preparation to open store
   const openStoreFromPreparation = useCallback(() => {
     sound.playBell();
+    addFloatingNumber('🔔 Tiệm đã mở cửa đón khách!', 'clean');
     setState(prev => ({
       ...prev,
       dayPhase: 'MORNING',
       isDayRunning: true,
       gameSpeed: 1
     }));
-  }, []);
+  }, [addFloatingNumber]);
 
   // 1. Place exact SKU onto Preparation Table (Accounting Invariant: NO REVENUE!)
   const placeItemOnPrepTable = useCallback((styleId: string, variantId: string, source: 'rack' | 'backroom') => {
@@ -1954,7 +1941,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dayTime: 0,
         isDayRunning: true,
         gameSpeed: 1,
-        dayPhase: 'MORNING',
+        dayPhase: 'PREPARATION',
         currentInGameMinutes: 480, // 08:00 AM
         playerCarry: [],
         fittingReturns: [],
@@ -2023,8 +2010,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetGame = () => {
-    clearGameState();
-    setState(INITIAL_GAME_STATE);
+    clearAllGameData();
+    const freshState: GameState = JSON.parse(JSON.stringify(INITIAL_GAME_STATE));
+    saveGameState(freshState, 'slot_1');
+    setActiveSlotId('slot_1');
+    setState(freshState);
+    sound.playBell();
+    addFloatingNumber('✨ Tiệm đã reset lại Ngày 1 từ đầu!', 'clean');
   };
 
   // 1-SECOND GAME LOOP

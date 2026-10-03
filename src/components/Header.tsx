@@ -19,7 +19,8 @@ export const Header: React.FC<HeaderProps> = ({
   const { 
     state, 
     setGameSpeed,
-    setActiveTab
+    setActiveTab,
+    openStoreFromPreparation
   } = useGame();
 
   // Virtual retail business clock: 08:00 AM to 22:00 PM
@@ -143,6 +144,17 @@ export const Header: React.FC<HeaderProps> = ({
               {currentPhaseInfo.badge} {currentPhaseInfo.label}
             </small>
           </div>
+
+          {state.dayPhase === 'PREPARATION' && (
+            <button
+              type="button"
+              onClick={openStoreFromPreparation}
+              className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-white font-black text-[10px] sm:text-[11px] px-2.5 py-1.5 rounded-xl border border-amber-300 shadow-sm animate-pulse flex items-center gap-1 active:scale-95 transition-all shrink-0 ml-1"
+              title="Bắt đầu mở cửa tiệm đón khách!"
+            >
+              <span>🔔 Mở Tiệm</span>
+            </button>
+          )}
         </div>
 
         {/* =========================================================================

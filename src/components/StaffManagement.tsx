@@ -69,8 +69,24 @@ export const StaffManagement: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {state.employees.map(emp => {
+        {state.employees.length === 0 ? (
+          <div className="bg-amber-50/90 border-2 border-dashed border-amber-300 rounded-3xl p-6 md:p-8 text-center text-[#3a2317] shadow-sm">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-xs">
+              👩‍💼
+            </div>
+            <h4 className="text-base sm:text-lg font-heading font-extrabold text-[#3a2317] mb-1">
+              Chủ Tiệm Đang Tự Tay Vận Hành (Chưa Thuê Nhân Viên)
+            </h4>
+            <p className="text-xs sm:text-sm text-[#7a5a48] max-w-lg mx-auto mb-3.5 leading-relaxed">
+              Bạn đang tự mình làm tất cả mọi việc: từ tư vấn stylist cho khách, tiếp nhận hàng sỉ, hỗ trợ phòng thử đồ đến thu ngân tính tiền! Hãy tích lũy tiền lời từ bán hàng để tuyển nhân viên bên dưới giúp tự động hóa tiệm nhé!
+            </p>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-200/80 text-amber-900 font-bold text-xs">
+              <span>💡 Gợi ý cho bạn:</span> Hãy chọn vị trí ở mục Tuyển Dụng bên dưới và bấm "Ký Hợp Đồng" khi có đủ tiền!
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {state.employees.map(emp => {
             const trainCost = emp.wagePerDay * 3;
             const canTrain = state.cash >= trainCost && emp.skillLevel < 5;
 
@@ -167,6 +183,7 @@ export const StaffManagement: React.FC = () => {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Recruitment Office (Tuyển Dụng Thêm Nhân Viên) */}

@@ -32,7 +32,8 @@ export const ShopFloor: React.FC = () => {
     giveCarriedItemToCustomer,
     collectFittingReturn,
     fulfillFittingSizeRequest,
-    resolveIncident
+    resolveIncident,
+    openStoreFromPreparation
   } = useGame();
 
   const fittingCustomers = state.customers.filter(c => c.state === 'fitting');
@@ -43,6 +44,43 @@ export const ShopFloor: React.FC = () => {
     <div className="space-y-6">
       {/* First 7 Days Journey Companion Bar */}
       <First7DaysJourneyWidget />
+
+      {/* ☀️ MORNING PREPARATION & STORE OPENING BANNER */}
+      {state.dayPhase === 'PREPARATION' && (
+        <motion.div 
+          initial={{ y: -8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="bg-gradient-to-r from-amber-50 via-[#fff8ef] to-orange-50 border-3 border-[#ead7bd] p-4 md:p-5 rounded-3xl shadow-[0_4px_0_#936451] flex flex-col sm:flex-row items-center justify-between gap-4 text-[#3a2317]"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-3xl shadow-xs shrink-0">
+              ☀️
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                  GIỜ CHUẨN BỊ BUỔI SÁNG (08:00 AM)
+                </span>
+                <span className="text-xs font-bold text-[#7a5a48]">Ngày {state.day}</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-heading font-extrabold text-[#3a2317] m-0">
+                Tiệm Chưa Mở Cửa — Sẵn Sàng Đón Khách Chưa Nàng?
+              </h3>
+              <p className="text-xs text-[#7a5a48] m-0 mt-0.5">
+                Kiểm tra sào đồ, đặt thêm hàng sỉ hoặc quét dọn sàn trước khi bấm mở cửa tiệm nhé!
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={openStoreFromPreparation}
+            className="btn-3d w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 hover:from-amber-400 hover:to-pink-400 text-white font-heading font-black text-xs sm:text-sm shadow-game-btn flex items-center justify-center gap-2 transition-all active:scale-95 shrink-0"
+          >
+            <span>🔔 MỞ CỬA TIỆM ĐÓN KHÁCH</span>
+            <span>➜</span>
+          </button>
+        </motion.div>
+      )}
 
       {/* 🏬 STITCH ISOMETRIC LIVING BOUTIQUE VIEWPORT (From Stitch Project: Nini Simulator) */}
       <div className="stitch-panel overflow-hidden p-3 md:p-4 bg-[#fffaf2]">
