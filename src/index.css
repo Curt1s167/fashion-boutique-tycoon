@@ -5,13 +5,19 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: var(--nini-text);
-  background-color: var(--nini-bg);
+  font-family: 'Baloo 2', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  background-color: var(--bg);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
 h1, h2, h3, h4, .font-heading {
-  font-family: 'Fredoka', 'Quicksand', cursive, sans-serif;
+  font-family: 'Baloo 2', 'Fredoka', 'Quicksand', cursive, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 /* Custom Arcade Game Button click depression effect */
@@ -22,18 +28,18 @@ h1, h2, h3, h4, .font-heading {
 }
 
 .btn-3d:active {
-  top: 4px;
-  box-shadow: 0 2px 0 0 rgba(147, 100, 81, 0.2) !important;
+  top: 3px;
+  box-shadow: 0 2px 0 0 rgba(58, 35, 23, 0.2) !important;
 }
 
-/* Nini Boutique Tile Floor Pattern */
+/* Boutique Warm Paper Floor Pattern (Tiệm Trà Mơ Ước feel) */
 .boutique-floor {
-  background-color: #FFF7F3;
+  background-color: var(--bg);
   background-image: 
-    radial-gradient(#FDA0A2 0.75px, transparent 0.75px),
-    radial-gradient(#FCC7A1 0.75px, #FFF7F3 0.75px);
-  background-size: 32px 32px;
-  background-position: 0 0, 16px 16px;
+    radial-gradient(#ef6f8e 0.6px, transparent 0.6px),
+    radial-gradient(#ead7bd 0.6px, var(--bg) 0.6px);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
 }
 
 /* Polished scrollbars */

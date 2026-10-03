@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Store, 
@@ -32,18 +32,25 @@ import { SaveSlotModal } from './components/SaveSlotModal';
 import { CuteWhyModal } from './components/CuteWhyModal';
 import { Week7ReviewModal } from './components/Week7ReviewModal';
 import { PwaInstallPrompt } from './components/pwa/PwaInstallPrompt';
+import { DesktopSidebars } from './components/desktop/DesktopSidebars';
+import { FashionGachaModal } from './components/modals/FashionGachaModal';
+import { FashionQuizModal } from './components/modals/FashionQuizModal';
+import { SettingsModal } from './components/modals/SettingsModal';
 
 const GameMain: React.FC = () => {
   const { activeTab, setActiveTab, state } = useGame();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGachaOpen, setIsGachaOpen] = useState(false);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
 
   const unrepliedReviewsCount = state.reviews.filter(r => !r.replied).length;
 
   const tabs: { id: ActiveTabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number }[] = [
     { 
       id: 'workstation', 
-      label: 'Bàn Làm Việc 9:16', 
+      label: 'Bàn Làm Việc', 
       icon: Smartphone, 
-      badge: state.customers.length > 0 ? `${state.customers.length} khách` : undefined 
+      badge: state.customers.length > 0 ? `${state.customers.length}` : undefined 
     },
     { 
       id: 'shop', 
@@ -65,7 +72,7 @@ const GameMain: React.FC = () => {
     },
     { 
       id: 'staff', 
-      label: 'Nhân Sự & Ca', 
+      label: 'Nhân Sự', 
       icon: Users, 
       badge: state.employees.length 
     },
@@ -73,11 +80,11 @@ const GameMain: React.FC = () => {
       id: 'reviews', 
       label: 'Đánh Giá Shop', 
       icon: Star, 
-      badge: unrepliedReviewsCount > 0 ? `${unrepliedReviewsCount} mới` : undefined 
+      badge: unrepliedReviewsCount > 0 ? `${unrepliedReviewsCount}` : undefined 
     },
     { 
       id: 'map', 
-      label: 'Bản Đồ Chuỗi', 
+      label: 'Chi Nhánh', 
       icon: MapPin, 
       badge: undefined 
     },
@@ -89,7 +96,7 @@ const GameMain: React.FC = () => {
     },
     { 
       id: 'lookbook', 
-      label: 'Lookbook & Feed', 
+      label: 'Lookbook', 
       icon: Layers, 
       badge: state.lookbookOutfits.filter(o => !o.isCompleted).length > 0 ? 'Mới' : undefined 
     },
@@ -102,62 +109,74 @@ const GameMain: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen boutique-floor flex flex-col pb-24 md:pb-8 selection:bg-pink-300 selection:text-pink-900">
-      {/* Sticky Header with Cash, Day, Stars, Advisor, Save */}
-      <Header />
+    <div className="min-h-screen boutique-floor flex flex-col pb-24 md:pb-8 text-[#3A2317] selection:bg-pink-300 selection:text-pink-900 font-sans">
+      {/* 🖥️ DESKTOP COMPANION SIDEBARS (Mạng Xã Hội bên trái - Đánh Giá bên phải) */}
+      <DesktopSidebars 
+        onOpenGacha={() => setIsGachaOpen(true)}
+        onOpenQuiz={() => setIsQuizOpen(true)}
+      />
 
-      {/* Floating money / popups */}
+      {/* 🧋 Tiệm Trà Mơ Ước Style Header & Striped Awning */}
+      <Header 
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenGacha={() => setIsGachaOpen(true)}
+        onOpenQuiz={() => setIsQuizOpen(true)}
+      />
+
+      {/* Floating numbers / Money alerts */}
       <FloatingMoney />
 
-      {/* Modals */}
+      {/* Game Modals */}
       <DaySummaryModal />
       <BusinessAdvisorModal />
       <SaveSlotModal />
       <CuteWhyModal />
       <Week7ReviewModal />
       <PwaInstallPrompt />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <FashionGachaModal isOpen={isGachaOpen} onClose={() => setIsGachaOpen(false)} />
+      <FashionQuizModal isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
 
-      {/* Main Container */}
-      <main className="max-w-6xl w-full mx-auto px-4 py-5 flex-1 flex flex-col">
-        {/* Navigation Tabs (Desktop & Tablet) */}
-        <div className="flex items-center justify-start md:justify-center gap-1.5 mb-6 bg-white/80 backdrop-blur-md p-2 rounded-3xl border-2 border-pink-200 overflow-x-auto shadow-sm scrollbar-none">
+      {/* Central Boutique Simulator Container */}
+      <main className="max-w-2xl w-full mx-auto px-2 sm:px-4 py-3 sm:py-5 flex-1 flex flex-col z-10">
+        {/* Navigation Tabs (Tiệm Trà Mơ Ước rounded style) */}
+        <div className="boutique-tabs mb-4 scrollbar-none">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
 
             return (
-              <motion.button
+              <button
                 key={tab.id}
-                whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative px-3 py-2 rounded-2xl font-heading font-bold text-xs flex items-center gap-1.5 transition-all whitespace-nowrap justify-center ${
-                  isActive
-                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-game-btn'
-                    : 'text-slate-600 hover:text-pink-600 hover:bg-pink-50'
-                }`}
+                className={`boutique-tab ${isActive ? 'active' : ''}`}
+                role="tab"
+                aria-selected={isActive}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-pink-500'}`} />
-                <span>{tab.label}</span>
+                <div className="relative flex items-center gap-1">
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#ef6f8e]' : 'text-[#7a5a48]'}`} />
+                  <span className="font-heading font-extrabold text-[11px] sm:text-xs">{tab.label}</span>
 
-                {/* Badge */}
-                {tab.badge !== undefined && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                    tab.badge.toString().includes('mới') || tab.badge === 'Mới'
-                      ? 'bg-amber-400 text-amber-950 animate-bounceShort'
-                      : isActive
-                      ? 'bg-white/20 text-white'
-                      : 'bg-pink-100 text-pink-700'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </motion.button>
+                  {/* Badge */}
+                  {tab.badge !== undefined && (
+                    <span className={`px-1 py-0.2 rounded-full text-[9px] font-extrabold ${
+                      tab.badge.toString().includes('Mới')
+                        ? 'bg-rose-500 text-white animate-bounce'
+                        : isActive
+                        ? 'bg-[#ef6f8e] text-white'
+                        : 'bg-[#ead7bd] text-[#3a2317]'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </div>
+              </button>
             );
           })}
         </div>
 
         {/* Tab Content Display */}
-        <div className="flex-1">
+        <div className="flex-1 bg-[#fffaf2] border-2 border-[#ead7bd] rounded-2xl p-3 sm:p-4 shadow-sm">
           <AnimatePresence mode="wait">
             {activeTab === 'workstation' && (
               <motion.div
@@ -284,7 +303,7 @@ const GameMain: React.FC = () => {
       </main>
 
       {/* Bottom Floating Navigation Bar for Mobile */}
-      <nav className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-lg border-t-2 border-pink-200 py-1.5 px-2 md:hidden z-40 shadow-lg flex justify-around items-center overflow-x-auto scrollbar-none">
+      <nav className="fixed bottom-0 inset-x-0 bg-[#fdf3e4]/95 backdrop-blur-lg border-t-2 border-[#ead7bd] py-1.5 px-2 md:hidden z-40 shadow-lg flex justify-around items-center overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -293,11 +312,11 @@ const GameMain: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-2xl relative transition-all min-w-[50px] ${
-                isActive ? 'text-pink-600 font-bold scale-105' : 'text-slate-400 font-medium'
+              className={`flex flex-col items-center gap-0.5 py-1 px-1.5 rounded-xl relative transition-all min-w-[46px] ${
+                isActive ? 'text-[#ef6f8e] font-extrabold scale-105' : 'text-[#7a5a48] font-semibold'
               }`}
             >
-              <div className={`p-1 rounded-xl ${isActive ? 'bg-pink-100' : 'bg-transparent'}`}>
+              <div className={`p-1 rounded-lg ${isActive ? 'bg-[#ffe9e5]' : 'bg-transparent'}`}>
                 <Icon className="w-4 h-4" />
               </div>
               <span className="text-[9px] font-heading leading-tight truncate">{tab.label.split(' ')[0]}</span>

@@ -6,6 +6,11 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Baloo 2"', 'Quicksand', 'system-ui', 'sans-serif'],
+        heading: ['"Baloo 2"', 'Fredoka', 'Quicksand', 'cursive', 'sans-serif'],
+        baloo: ['"Baloo 2"', 'cursive', 'sans-serif'],
+      },
       colors: {
         pastel: {
           pink: '#FFB5D5',

@@ -129,6 +129,8 @@ interface GameContextType {
   closeWeek7Review: () => void;
   selectWeek2Focus: (choice: Week2FocusChoice) => void;
   trackJourneyGoal: (goalId: string, increment?: number) => void;
+  addCash: (amount: number) => void;
+  addReputationExp: (amount: number) => void;
 }
 
 const INITIAL_GAME_STATE: GameState = {
@@ -1588,6 +1590,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, activeBranchId: branchId }));
   };
 
+  const addCash = useCallback((amount: number) => {
+    setState(prev => ({
+      ...prev,
+      cash: prev.cash + amount,
+      totalEarned: amount > 0 ? prev.totalEarned + amount : prev.totalEarned,
+      currentDayStats: {
+        ...prev.currentDayStats,
+        revenue: amount > 0 ? prev.currentDayStats.revenue + amount : prev.currentDayStats.revenue
+      }
+    }));
+    sound.playCash();
+  }, []);
+
+  const addReputationExp = useCallback((amount: number) => {
+    setState(prev => {
+      let exp = prev.reputationExp + amount;
+      let stars = prev.reputationStars;
+      let nextExp = prev.reputationNextExp;
+      while (exp >= nextExp && stars < 5) {
+        exp -= nextExp;
+        stars += 1;
+        nextExp = Math.round(nextExp * 1.5);
+        sound.playLevelUp();
+      }
+      return {
+        ...prev,
+        reputationExp: exp,
+        reputationStars: stars,
+        reputationNextExp: nextExp
+      };
+    });
+  }, []);
+
   // Claim lookbook combo reward
   const claimLookbookOutfit = useCallback((lookbookId: string) => {
     setState(prev => {
@@ -2415,7 +2450,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         openWeek7Review,
         closeWeek7Review,
         selectWeek2Focus,
-        trackJourneyGoal
+        trackJourneyGoal,
+        addCash,
+        addReputationExp
       }}
     >
       {children}

@@ -1,6 +1,26 @@
-/* Nini Brand Visual System & PWA Safe Area Tokens */
+/* ==========================================================================
+   Tiệm Thời Trang Nini — Theme & UI Design System
+   Copied & adapted from Tiệm Trà Mơ Ước (tiemtramouoc.tensorship.tech)
+   ========================================================================== */
+
 :root {
-  /* Core Brand Colors */
+  /* Tiệm Trà Mơ Ước Core Visual Tokens */
+  --bg: #fdf3e4;
+  --ink: #3a2317;
+  --soft: #7a5a48;
+  --panel: #fffaf2;
+  --line: #ead7bd;
+  --counter: #8a5a3b;
+  --counter-top: #a8714c;
+  --pink: #ef6f8e;
+  --pink-d: #c24c69;
+  --mint: #4fa883;
+  --warn: #e2574c;
+  --gold: #f0b43c;
+  --chalk: #2f4a3a;
+  --chalk-ink: #f4efe2;
+
+  /* Nini Brand Extensions */
   --nini-pink: #FDA0A2;
   --nini-pink-soft: #FFB7B2;
   --nini-peach: #FCC7A1;
@@ -11,22 +31,15 @@
   --nini-mint: #BAD5BC;
   --nini-blue: #D0E0E2;
 
-  /* Surfaces */
-  --nini-bg: #FFF7F3;
-  --nini-surface: #FFF7F3;
+  /* Surfaces & Outlines */
+  --nini-bg: var(--bg);
+  --nini-surface: var(--panel);
   --nini-surface-strong: #FFE9E5;
   --nini-surface-card: #FFFFFF;
-
-  /* Typography & Warm Outlines */
-  --nini-text: #5B3B33;
-  --nini-text-muted: #8B6A60;
-  --nini-outline: rgba(147, 100, 81, 0.22);
-  --nini-outline-strong: #936451;
-
-  /* Semantics */
-  --nini-success: #97C8A4;
-  --nini-warning: #F2C879;
-  --nini-danger: #E98282;
+  --nini-text: var(--ink);
+  --nini-text-muted: var(--soft);
+  --nini-outline: var(--line);
+  --nini-outline-strong: var(--counter);
 
   /* Safe Area Insets */
   --sat: env(safe-area-inset-top, 0px);
@@ -35,39 +48,540 @@
   --sal: env(safe-area-inset-left, 0px);
 }
 
-/* Safe Area Utility Classes */
-.safe-top {
-  padding-top: max(12px, env(safe-area-inset-top));
+/* ==========================================================================
+   BOUTIQUE STRIPED AWNING (Mái hiên tiệm sọc hồng trắng)
+   ========================================================================== */
+.awning {
+  height: 24px;
+  background: repeating-linear-gradient(90deg, var(--pink) 0 28px, #ffffff 28px 56px);
+  position: relative;
+  box-shadow: 0 4px 10px rgba(58, 35, 23, 0.08);
+  z-index: 20;
+  width: 100%;
 }
 
-.safe-bottom {
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+.awning::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 10px;
+  background: 
+    radial-gradient(circle at 14px 0, var(--pink) 10px, transparent 11px) 0 0/56px 10px repeat-x,
+    radial-gradient(circle at 42px 0, #ffffff 10px, transparent 11px) 0 0/56px 10px repeat-x;
 }
 
-.safe-area-container {
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
+/* ==========================================================================
+   HEADER BUTTONS & MICRO ACTION CONTROLS (Tiệm Trà Mơ Ước style)
+   ========================================================================== */
+.h-btns-grid {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.pbtn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  box-shadow: 0 2px 4px rgba(58, 35, 23, 0.08);
+}
+
+.pbtn:hover {
+  background: #fff;
+  transform: scale(1.08);
+}
+
+.pbtn:active {
+  transform: scale(0.92);
+}
+
+/* ==========================================================================
+   ROUNDED TABS (Thanh tab tròn mềm mại Tiệm Trà Mơ Ước)
+   ========================================================================== */
+.boutique-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 6px 0;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--line) 65%, var(--panel));
+  border-radius: 18px 18px 0 0;
+  border: 1.5px solid var(--line);
+  border-bottom: none;
+}
+
+.boutique-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 8px 6px;
+  font-size: 0.82rem;
+  border-radius: 14px 14px 0 0;
+  font-weight: 800;
+  color: var(--soft);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: all 0.18s ease;
+  opacity: 0.78;
+}
+
+.boutique-tab:hover {
+  opacity: 1;
+  color: var(--ink);
+}
+
+.boutique-tab.active {
+  background: var(--panel);
+  color: var(--ink);
+  opacity: 1;
+  box-shadow: 0 -2px 6px rgba(58, 35, 23, 0.04);
+}
+
+/* ==========================================================================
+   DESKTOP COMPANION SIDEBARS (Hiển thị cố định trên PC màn hình rộng >= 1150px)
+   ========================================================================== */
+.desktop-sidebar {
+  display: none;
+}
+
+@media (min-width: 1150px) {
+  .desktop-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 14px;
+    bottom: 14px;
+    width: 310px;
+    max-width: calc((100vw - 560px) / 2 - 16px);
+    background: #fffdf9;
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 6px 24px rgba(58, 35, 23, 0.09);
+    overflow: hidden;
+    z-index: 50;
+    box-sizing: border-box;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  .desktop-sidebar-left {
+    left: max(12px, calc(50vw - 260px - 16px - 310px));
+  }
+
+  .desktop-sidebar-right {
+    right: max(12px, calc(50vw - 260px - 16px - 310px));
+  }
+
+  .desktop-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #faf2e6;
+    border-bottom: 1.5px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  .desktop-sidebar-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+
+  .desktop-sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .desktop-sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+
+  .desktop-sidebar-body::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .desktop-sidebar-body::-webkit-scrollbar-thumb {
+    background: #d6beaa;
+    border-radius: 10px;
+  }
+
+  .desktop-sidebar-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Thẻ hồ sơ boutique shop */
+.desktop-profile-card {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 2px 6px rgba(58, 35, 23, 0.04);
+}
+
+.desktop-profile-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.desktop-profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.desktop-profile-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 175px;
+}
+
+.desktop-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.desktop-badge.verified {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.desktop-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  text-align: center;
+  background: #faf6f0;
+  border-radius: 10px;
+  padding: 6px 2px;
+}
+
+.desktop-stat-cell b {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.desktop-stat-cell small {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--soft);
+  margin-top: 1px;
+}
+
+/* Thẻ quảng cáo TikTok Ads / Facebook */
+.desktop-ad-card {
+  background: #fff;
+  border: 1.5px solid #fed7aa;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.desktop-ad-card.active {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.desktop-ad-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #166534;
+  margin-bottom: 2px;
+}
+
+.desktop-ad-info {
+  font-size: 0.74rem;
+  color: #15803d;
+  line-height: 1.3;
+}
+
+/* Dòng bài viết Social Feed */
+.desktop-feed-card {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 4px rgba(58, 35, 23, 0.03);
+}
+
+.desktop-feed-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.desktop-feed-avt {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.desktop-feed-author {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.desktop-feed-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #b91c1c;
+  margin-left: auto;
+}
+
+.desktop-feed-text {
+  font-size: 0.78rem;
+  color: var(--ink);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.desktop-feed-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.desktop-feed-like {
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s;
+}
+
+.desktop-feed-like.liked {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecdd3;
+}
+
+/* Right Sidebar: Reviews Summary & Cards */
+.desktop-rev-summary {
+  display: grid;
+  grid-template-columns: 85px 1fr;
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  align-items: center;
+}
+
+.desktop-rev-score {
+  text-align: center;
+}
+
+.desktop-rev-score b {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #b45309;
+  line-height: 1;
+}
+
+.desktop-rev-stars {
+  color: #f59e0b;
+  font-size: 0.85rem;
+  letter-spacing: -1px;
+  margin: 2px 0;
+}
+
+.desktop-rev-score small {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--soft);
+}
+
+.desktop-rev-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+}
+
+.desktop-rev-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  color: var(--soft);
+  font-weight: 700;
+}
+
+.desktop-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.desktop-bar-fill {
+  height: 100%;
+  background: #f59e0b;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.desktop-flt-chips {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.desktop-chip {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  color: var(--soft);
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.desktop-chip.on {
+  background: var(--pink);
+  border-color: var(--pink-d);
+  color: #fff;
+}
+
+.desktop-rev-card {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.desktop-rev-card.good {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.desktop-rev-card.bad {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.desktop-rev-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.desktop-rev-user {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.desktop-rev-rating {
+  color: #f59e0b;
+  font-size: 0.78rem;
+  letter-spacing: -1px;
+}
+
+.desktop-rev-sub {
+  font-size: 0.68rem;
+  color: var(--soft);
+}
+
+.desktop-rev-text {
+  font-size: 0.76rem;
+  color: var(--ink);
+  line-height: 1.35;
 }
 
 /* Nini Tactile Outlines & 3D Arcade Buttons */
 .nini-card {
-  background-color: var(--nini-surface-card);
-  border: 2px solid var(--nini-outline);
+  background-color: var(--panel);
+  border: 2px solid var(--line);
   border-radius: 1.5rem;
-  box-shadow: 0 4px 12px rgba(147, 100, 81, 0.08);
+  box-shadow: 0 4px 12px rgba(58, 35, 23, 0.06);
 }
 
 .nini-btn-primary {
-  background: linear-gradient(135deg, #FDA0A2 0%, #FCC7A1 100%);
-  color: #5B3B33;
-  border: 2px solid #936451;
-  box-shadow: 0 4px 0 #936451;
+  background: linear-gradient(135deg, #ef6f8e 0%, #FCC7A1 100%);
+  color: #fff;
+  border: 2px solid var(--counter);
+  box-shadow: 0 3px 0 var(--counter);
   transition: all 0.15s ease;
+  font-weight: 800;
 }
 
 .nini-btn-primary:active {
   transform: translateY(2px);
-  box-shadow: 0 2px 0 #936451;
+  box-shadow: 0 1px 0 var(--counter);
 }
