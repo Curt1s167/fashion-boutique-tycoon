@@ -22,21 +22,27 @@ export const DaySummaryModal: React.FC = () => {
           initial={{ scale: 0.85, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.85, opacity: 0 }}
-          className="bg-white rounded-[32px] max-w-md w-full border-4 border-pink-300 shadow-2xl p-5 sm:p-6 text-center relative overflow-hidden my-auto max-h-[90vh] overflow-y-auto scrollbar-none"
+          className="bg-[#fffaf2] rounded-[32px] max-w-md w-full border-4 border-[#ead7bd] shadow-[0_10px_25px_rgba(91,59,51,0.25)] p-5 sm:p-6 text-center relative overflow-hidden my-auto max-h-[90vh] overflow-y-auto scrollbar-none"
         >
-          {/* Header Trophy Banner */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-gradient-to-tr from-amber-300 to-yellow-400 border-4 border-white flex items-center justify-center text-3xl sm:text-4xl shadow-game-btn mb-2.5 animate-bounceShort">
-            🐱
+          <div className="stitch-scallop-trim"></div>
+
+          {/* Stitch Mascot & Day Illustration Banner */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-3xl overflow-hidden border-3 border-[#ead7bd] shadow-[0_4px_0_#936451] mb-2 bg-white">
+            <img 
+              src="/stitch/06_screen_inventory.png" 
+              alt="Daily Summary Art" 
+              className="w-full h-full object-cover"
+            />
           </div>
 
-          <div className="inline-block px-3 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[10px] font-extrabold uppercase tracking-wide mb-1">
+          <div className="inline-block px-3 py-0.5 rounded-full bg-[#ffe9e4] text-[#7d5637] border border-[#ead7bd] text-[10px] font-extrabold uppercase tracking-wide mb-1">
             Ngày {state.day}/7: {currentJourney.subtitle}
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600 mb-1">
-            Tổng Kết Ngày {state.day} Rực Rỡ!
+          <h2 className="text-xl sm:text-2xl font-heading font-extrabold text-[#3a2317] mb-1">
+            Báo Cáo Ngày & Đánh Giá Khách Hàng
           </h2>
-          <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+          <p className="text-xs text-[#7a5a48] mb-4 leading-relaxed">
             {currentJourney.storyOpening}
           </p>
 

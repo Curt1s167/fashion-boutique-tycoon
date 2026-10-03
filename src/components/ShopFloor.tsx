@@ -43,6 +43,136 @@ export const ShopFloor: React.FC = () => {
       {/* First 7 Days Journey Companion Bar */}
       <First7DaysJourneyWidget />
 
+      {/* 🏬 STITCH ISOMETRIC LIVING BOUTIQUE VIEWPORT (From Stitch Project: Nini Simulator) */}
+      <div className="stitch-panel overflow-hidden p-3 md:p-4 bg-[#fffaf2]">
+        <div className="stitch-scallop-trim"></div>
+
+        {/* Wave Tracker & Ambient Status Banner */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 bg-[#ffe9e4] p-2.5 rounded-2xl border border-[#ead7bd] shadow-[inset_0_1px_2px_rgba(125,86,55,0.12)]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#fcc7a1] flex items-center justify-center text-[#5b3b33] font-bold shadow-xs">
+              🏪
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black uppercase text-[#ef6f8e] tracking-wider">
+                  ĐỢT {Math.min(5, Math.max(1, Math.floor(state.dayTime / 20) + 1))}/5
+                </span>
+                <span className="w-2 h-2 rounded-full bg-[#4fa883] animate-pulse"></span>
+                <span className="text-xs font-bold text-[#3a2317]">
+                  {state.dayTime < 30 ? 'Giờ Mở Cửa Buổi Sáng' : state.dayTime < 70 ? 'Giờ Cao Điểm Trưa' : 'Giờ Tan Tầm Mua Sắm'}
+                </span>
+              </div>
+              <span className="text-[11px] text-[#7a5a48]">
+                {browsingCustomers.length} khách đang xem đồ • {fittingCustomers.length} khách thử đồ • {checkoutCustomers.length} chờ tính tiền
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-[#ead7bd] shadow-xs text-xs font-bold text-[#ef6f8e]">
+              <span>⏱️</span>
+              <span className="tabular-nums">{Math.max(0, 100 - state.dayTime)}% ngày</span>
+            </div>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-[#ead7bd] shadow-xs text-xs font-bold text-[#7a5a48]">
+              <span>⭐</span>
+              <span>{state.reputationStars.toFixed(1)}/5.0</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Cutaway Isometric Store Viewport with Interactive Tap Nodes */}
+        <div className="relative w-full aspect-[16/9] md:aspect-[21/9] min-h-[220px] max-h-[380px] rounded-2xl overflow-hidden border-2 border-[#ead7bd] shadow-[0_4px_0_#936451] bg-[#ffe2db]">
+          <img 
+            src="/stitch/04_generating_image_fashion.png" 
+            alt="Nini Boutique Interior" 
+            className="w-full h-full object-cover object-center pointer-events-none select-none"
+          />
+          {/* Soft Boutique Lighting Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#3a2317]/40 via-transparent to-transparent pointer-events-none"></div>
+
+          {/* Node 1: Kệ Áo & Babytee (Top Left) */}
+          <button
+            onClick={() => setActiveTab('inventory')}
+            className="absolute top-[32%] left-[18%] -translate-x-1/2 -translate-y-1/2 group active:scale-95 transition-transform"
+            title="Kệ Áo Sơ Mi & Babytee"
+          >
+            <div className="relative flex flex-col items-center">
+              <span className="absolute -top-5 px-1.5 py-0.5 rounded-full bg-[#ef6f8e] text-white text-[9px] font-extrabold shadow-xs whitespace-nowrap animate-bounce">
+                Kệ Áo
+              </span>
+              <div className="w-10 h-10 md:w-11 md:h-11 stitch-node-badge flex flex-col items-center justify-center p-1">
+                <span className="text-base md:text-lg">👚</span>
+                <span className="text-[9px] font-black text-[#7a5a48] -mt-1">
+                  {state.styles.babytee?.variants.reduce((a, b) => a + b.floorStock, 0) || 0}c
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Node 2: Kệ Quần & Váy (Center Floor) */}
+          <button
+            onClick={() => setActiveTab('inventory')}
+            className="absolute top-[52%] left-[46%] -translate-x-1/2 -translate-y-1/2 group active:scale-95 transition-transform"
+            title="Kệ Quần Jean & Váy"
+          >
+            <div className="relative flex flex-col items-center">
+              <span className="absolute -top-5 px-1.5 py-0.5 rounded-full bg-[#7d5637] text-white text-[9px] font-extrabold shadow-xs whitespace-nowrap">
+                Kệ Quần/Váy
+              </span>
+              <div className="w-10 h-10 md:w-11 md:h-11 stitch-node-badge flex flex-col items-center justify-center p-1">
+                <span className="text-base md:text-lg">👖</span>
+                <span className="text-[9px] font-black text-[#7a5a48] -mt-1">
+                  {state.styles.baggy_jeans?.variants.reduce((a, b) => a + b.floorStock, 0) || 0}c
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Node 3: Phòng Thử Đồ (Top Right) */}
+          <div className="absolute top-[36%] right-[18%] -translate-x-1/2 -translate-y-1/2">
+            <div className="stitch-bubble-callout">
+              <span className="text-sm">🚪</span>
+              <span className="text-[10px] font-bold text-[#3a2317]">
+                Phòng thử: {fittingCustomers.length}/{state.upgrades.fittingRooms.level}
+              </span>
+            </div>
+          </div>
+
+          {/* Node 4: Quầy Thu Ngân POS (Bottom Left) */}
+          <div className="absolute bottom-[16%] left-[20%] -translate-x-1/2">
+            <button
+              onClick={rushCheckout}
+              disabled={checkoutCustomers.length === 0}
+              className={`stitch-bubble-callout transition-transform active:scale-95 ${
+                checkoutCustomers.length > 0 ? 'bg-[#ffdad2] border-[#ef6f8e] animate-pulse cursor-pointer' : 'opacity-85'
+              }`}
+            >
+              <span className="text-sm">💳</span>
+              <span className="text-[10px] font-bold text-[#3a2317]">
+                POS: {checkoutCustomers.length > 0 ? `${checkoutCustomers.length} khách chờ!` : 'Sẵn sàng'}
+              </span>
+            </button>
+          </div>
+
+          {/* Floor Ambient Ribbon Footer */}
+          <div className="absolute bottom-2 inset-x-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 flex items-center justify-between border border-[#ead7bd] shadow-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#4fa883]"></span>
+              <span className="text-[10px] md:text-xs font-bold text-[#7a5a48]">
+                Không gian Boutique Nini Bến Thành • Sạch sẽ: {state.cleanliness}%
+              </span>
+            </div>
+            <button 
+              onClick={() => setActiveTab('upgrades')}
+              className="text-[10px] md:text-xs font-extrabold text-[#ef6f8e] hover:underline"
+            >
+              Nâng cấp sàn tiệm →
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* 1. Player Carry Tray & Store Tasks Strip */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Player Hands Tray */}

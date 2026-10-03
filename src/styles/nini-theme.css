@@ -585,3 +585,70 @@
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--counter);
 }
+
+/* ==========================================================================
+   STITCH BOUTIQUE DESIGN GRAMMAR (From Stitch Project: Nini Simulator)
+   Warm cocoa 3D tactile borders, scallop trims, node badges & cozy panels
+   ========================================================================== */
+.stitch-panel {
+  background-color: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 0 #936451, 0 8px 16px rgba(91, 59, 51, 0.08);
+  position: relative;
+}
+
+.stitch-panel-solid {
+  background-color: #fffaf2;
+  border: 2px solid #ead7bd;
+  border-radius: 1.25rem;
+  box-shadow: 0 3px 0 #936451;
+}
+
+.stitch-node-badge {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 1.5px solid #ead7bd;
+  border-radius: 9999px;
+  box-shadow: 0 3px 0 #936451;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stitch-node-badge:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 5px 0 #936451;
+}
+
+.stitch-pill {
+  background-color: #ffe9e4;
+  color: #7d5637;
+  border: 1px solid #ead7bd;
+  border-radius: 9999px;
+  font-weight: 700;
+  box-shadow: inset 0 1px 2px rgba(125, 86, 55, 0.12);
+}
+
+.stitch-bubble-callout {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 1.5px solid #ead7bd;
+  border-radius: 9999px;
+  box-shadow: 0 3px 0 #936451;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stitch-scallop-trim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background-image: radial-gradient(circle at 6px 0, #fda0a2 5px, transparent 6px);
+  background-size: 12px 6px;
+  background-repeat: repeat-x;
+  opacity: 0.6;
+}
+

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowUpCircle, CheckCheck } from 'lucide-react';
+import { ArrowUpCircle, CheckCheck } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import type { GameState } from '../types/game';
 
@@ -19,20 +19,38 @@ export const ShopUpgrades: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Upgrades Top Banner */}
-      <div className="bg-gradient-to-r from-purple-100 via-pink-100 to-indigo-100 p-5 rounded-3xl border-2 border-purple-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-purple-600 shadow-sm font-bold text-2xl">
-            ✨
+      {/* 🚀 STITCH BRANCH UPGRADES HERO BANNER (Screen 10) */}
+      <div className="stitch-panel overflow-hidden p-4 md:p-5 bg-[#fffaf2]">
+        <div className="stitch-scallop-trim"></div>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#ead7bd] shadow-[0_3px_0_#936451] shrink-0 bg-white">
+              <img 
+                src="/stitch/10_screen_fitting.png" 
+                alt="Shop Upgrades" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-black uppercase text-[#ef6f8e] bg-[#ffe9e4] px-2 py-0.5 rounded-full border border-[#ead7bd]">
+                  ĐẦU TƯ CƠ SỞ VẬT CHẤT
+                </span>
+                <span className="text-xs text-[#4fa883] font-bold">✨ Tối Ưu Năng Suất</span>
+              </div>
+              <h2 className="text-lg md:text-xl font-heading font-extrabold text-[#3a2317] m-0">
+                Quản Trị & Nâng Cấp Chi Nhánh
+              </h2>
+              <p className="text-xs text-[#7a5a48] mt-0.5">
+                Đầu tư mở rộng phòng thử đồ nhung cao cấp, máy tính tiền POS và không gian boutique.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg md:text-xl font-heading font-extrabold text-slate-800 m-0 flex items-center gap-2">
-              Nâng Cấp Cơ Sở Vật Chất & Dịch Vụ
-              <Sparkles className="w-4 h-4 text-purple-500 fill-purple-500 animate-pulse" />
-            </h2>
-            <p className="text-xs md:text-sm text-slate-600">
-              Đầu tư mở rộng phòng thử đồ, máy tính tiền và marketing để gia tăng doanh thu bội phần!
-            </p>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="bg-white px-3.5 py-2 rounded-2xl border-2 border-[#ead7bd] shadow-[0_2px_0_#936451] text-xs font-bold text-[#ef6f8e]">
+              <span>Ngân sách: <b className="text-[#3a2317]">{state.cash.toLocaleString('vi-VN')}₫</b></span>
+            </div>
           </div>
         </div>
       </div>

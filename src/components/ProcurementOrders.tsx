@@ -32,25 +32,40 @@ export const ProcurementOrders: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-blue-100 via-indigo-100 to-purple-100 p-5 rounded-3xl border-2 border-indigo-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm font-bold text-2xl">
-            🏭
+      {/* 🏭 STITCH FACTORY & QC INSPECTION HERO BANNER (Screen 09) */}
+      <div className="stitch-panel overflow-hidden p-4 md:p-5 bg-[#fffaf2]">
+        <div className="stitch-scallop-trim"></div>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#ead7bd] shadow-[0_3px_0_#936451] shrink-0 bg-white">
+              <img 
+                src="/stitch/09_screen_checkout.png" 
+                alt="QC Factory" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-black uppercase text-[#ef6f8e] bg-[#ffe9e4] px-2 py-0.5 rounded-full border border-[#ead7bd]">
+                  QUY TRÌNH QC TIÊU CHUẨN
+                </span>
+                <span className="text-xs text-[#4fa883] font-bold">✓ Đạt 99.4%</span>
+              </div>
+              <h2 className="text-lg md:text-xl font-heading font-extrabold text-[#3a2317] m-0">
+                Nhập Hàng Xưởng Sỉ & Kiểm Định QC
+              </h2>
+              <p className="text-xs text-[#7a5a48] mt-0.5">
+                Kiểm định chất lượng từng lô may trước khi nhập kho lưu trữ sau shop.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg md:text-xl font-heading font-extrabold text-slate-800 m-0 flex items-center gap-2">
-              Đặt Hàng Nhà Cung Cấp & Xưởng Sỉ
-            </h2>
-            <p className="text-xs md:text-sm text-slate-600">
-              Nhập hàng theo từng mã SKU, theo dõi kiện hàng giao về kho sau.
-            </p>
-          </div>
-        </div>
 
-        <div className="bg-white/80 px-4 py-2 rounded-2xl border border-indigo-200 text-xs font-bold text-indigo-800 flex items-center gap-2">
-          <Truck className="w-4 h-4 text-indigo-600" />
-          <span>{state.purchaseOrders.length} kiện hàng đang giao</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="bg-white px-3.5 py-2 rounded-2xl border-2 border-[#ead7bd] shadow-[0_2px_0_#936451] text-xs font-bold text-[#7a5a48] flex items-center gap-2">
+              <Truck className="w-4 h-4 text-[#ef6f8e]" />
+              <span>{state.purchaseOrders.length} kiện đang giao</span>
+            </div>
+          </div>
         </div>
       </div>
 
